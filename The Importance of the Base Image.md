@@ -24,6 +24,17 @@ And small, strategic changes can shift your posture from reactive to resilient.
 
 The number of vulnerabilities keeps rising — and the backlog makes it harder to triage, prioritize, and act.
 
+### Why It Used to Feel Simpler
+
+In traditional environments, vulnerability management often felt more controlled — and quieter.
+- VMs were typically patched using tools like WSUS or Red Hat Satellite, which focused on available updates, not full vulnerability exposure.
+- Security teams would often ensure patches were applied before scheduled vulnerability scans with tools like Nessus, which might run weekly or monthly.
+- As a result, vulnerability reports were shorter, cleaner, and focused mostly on what was patchable at the time — not what was truly present or newly disclosed.
+
+It wasn’t that there were fewer vulnerabilities — we just had less visibility into them.
+
+That’s why the shift to container security — with continuous scanning, dependency awareness, and full-stack visibility — can feel overwhelming at first.
+
 ---
 
 In a world where CVEs are piling up faster than they can be processed, the idea of a “zero CVE” image sounds comforting, right?
@@ -45,7 +56,24 @@ Even trusted vendors offering “zero CVE” images rely on:
 
 ---
 
-## So what happens when you skip that process?
+## Why It Feels Like There Are More Vulnerabilities Now
+
+Tools like RHACS often surface more vulnerabilities than what teams were used to seeing in traditional environments — and that can feel overwhelming at first.
+
+But the reality is:
+- RHACS is not generating noise — it’s providing full visibility.
+- In traditional monolithic VM-based systems, the scope of analysis was smaller — fewer services, fewer components, and often patch-based scanning only.
+- As we modernize and break monoliths into microservices, we naturally introduce more code, more packages, and more dependencies — all of which can be independently analyzed.
+- RHACS gives you insight into all of it — base images, packages, libraries, exposure, privileges — across hundreds of services.
+
+So it’s not that you suddenly have “more vulnerabilities.”
+It’s that for the first time, you can see them all — and act on them effectively.
+
+## Visibility is only powerful if it leads to action.
+
+Without process changes, known risks persist — and replicate across every workload built from the same source.
+
+### So what happens when you skip that process?
 
 You unintentionally amplify risk across your entire environment.  
 A single vulnerable base image becomes the foundation for dozens — sometimes hundreds — of workloads.
