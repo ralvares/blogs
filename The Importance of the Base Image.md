@@ -22,14 +22,11 @@ And small, strategic changes can shift your posture from reactive to resilient.
 
 ## The CVE Problem Is Not Getting Better — It’s Accelerating
 
-The number of known CVEs is growing exponentially.
-
-According to VulnCheck:
-- Over 290,000 CVEs have been assigned  
-- But NVD has failed to enrich 70%+ of new CVEs since February 2024  
-- This backlog impacts triage, fix prioritization, and risk analysis
+The number of vulnerabilities keeps rising — and the backlog makes it harder to triage, prioritize, and act.
 
 ---
+
+In a world where CVEs are piling up faster than they can be processed, the idea of a “zero CVE” image sounds comforting — but it’s dangerously misleading.
 
 ## The Fallacy of “Zero CVE” Images
 
