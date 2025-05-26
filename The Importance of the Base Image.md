@@ -26,7 +26,7 @@ The number of vulnerabilities keeps rising — and the backlog makes it harder t
 
 ---
 
-In a world where CVEs are piling up faster than they can be processed, the idea of a “zero CVE” image sounds comforting — but it’s dangerously misleading.
+In a world where CVEs are piling up faster than they can be processed, the idea of a “zero CVE” image sounds comforting, right?
 
 ## The Fallacy of “Zero CVE” Images
 
