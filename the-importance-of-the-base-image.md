@@ -1,4 +1,3 @@
-
 # From CVE Overload to Security Maturity
 
 ### *How Small Shifts Create Big Wins in Container Security*
@@ -7,7 +6,7 @@
 
 ## Why This Conversation Matters
 
-You’ve invested in OpenShift and RHACS.  
+You’ve invested in Kubernetes.  
 You have visibility. You’re scanning.  
 But the vulnerabilities keep coming… and the backlog keeps growing.
 
@@ -58,13 +57,13 @@ Even trusted vendors offering “zero CVE” images rely on:
 
 ## Why It Feels Like There Are More Vulnerabilities Now
 
-Tools like RHACS often surface more vulnerabilities than what teams were used to seeing in traditional environments — and that can feel overwhelming at first.
+Vulnerabilitie scanners often surface more vulnerabilities than what teams were used to seeing in traditional environments — and that can feel overwhelming at first.
 
 But the reality is:
-- RHACS is not generating noise — it’s providing full visibility.
-- In traditional monolithic VM-based systems, the scope of analysis was smaller — fewer services, fewer components, and often patch-based scanning only.
+- These tools aren’t generating noise — they’re providing full visibility.
+- In traditional monolithic, VM-based systems, the scope of analysis was smaller: fewer services, fewer components, and often only patch-based scanning.
 - As we modernize and break monoliths into microservices, we naturally introduce more code, more packages, and more dependencies — all of which can be independently analyzed.
-- RHACS gives you insight into all of it — base images, packages, libraries, exposure, privileges — across hundreds of services.
+- Modern container security solutions give you insight into everything — base images, packages, libraries, exposure, privileges — across hundreds of services.
 
 So it’s not that you suddenly have “more vulnerabilities.”
 It’s that for the first time, you can see them all — and act on them effectively.
@@ -166,7 +165,7 @@ Instead: **rebuild → redeploy → replace**.
 Security must be embedded into your pipelines:
 
 ### What to Integrate:
-- RHACS inline scans in CI pipelines  
+- Inline vulnerability scans in CI pipelines  
 - Fail builds with:  
   - Unapproved base images  
   - Critical CVEs with fixes available  
@@ -183,31 +182,13 @@ Security must be embedded into your pipelines:
 > Of course, no build is perfect — and production is where intent meets reality.  
 > That’s why we need real-time safeguards in the cluster: context-aware, policy-enforced, and always watching.
 
-Once deployed, RHACS helps you enforce context-based policy decisions:
+Once deployed, modern security platforms help you enforce context-based policy decisions:
 
 - Block workloads with:  
   - Excessive capabilities  
   - Privilege escalation (root, hostPath)  
   - Internet exposure (e.g., no ingress controls)  
 - Use network graph + enforcement to isolate apps  
-
-
----
-
-## Design for Ownership at Scale
-
-> This can’t be owned by one team.  
-> To scale securely, **every team must own their layer** — with shared guardrails and clear boundaries.
-
-### Split responsibilities by layer:
-
-| **Layer**       | **Owner**         | **Focus**                           |
-|-----------------|------------------|-------------------------------------|
-| Base image      | Platform team     | Trust, scanning, patching           |
-| Middleware      | Architects        | Compatibility, policy               |
-| Application     | Developers        | Business logic, agility             |
-
-Each team owns security for their layer, but shares a common platform and enforcement model.
 
 ---
 
@@ -218,7 +199,7 @@ Each team owns security for their layer, but shares a common platform and enforc
 
 With GitOps:
 - Declarative app definitions (Helm, Kustomize, ArgoCD)  
-- Declarative security policies (RHACS)  
+- Declarative security policies  
 - Automated reconciliations  
 - Full Git audit trail and rollback  
 
@@ -237,7 +218,7 @@ With GitOps:
 | Build           | Scan, sign, and enforce policy at build time      |
 | Deploy          | Enforce digest + admission controls               |
 | Runtime         | Block excessive privileges, isolate workloads     |
-| Visibility      | Use RHACS to track, triage, and own risk          |
+| Visibility      | Use security platforms to track, triage, and own risk |
 | Process         | Immutable workflows + GitOps promotion            |
 
 ---
