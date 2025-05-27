@@ -20,6 +20,13 @@ Describes how containers use immutable images and centralized patching. Shows wh
 
 ---
 
+### 2a. Base Image Approval Policy
+**Document:** [base-image-approval-policy.md](base-image-approval-policy.md)  
+**Overview:**  
+Describes the policy and automated enforcement for ensuring all container builds use only approved, secure base images. Explains how this reduces supply chain risk and is enforced in CI/CD using Conftest.
+
+---
+
 ### 3. The Way Forward: Risk-Driven Security
 **Document:** [from-cve-chaos-to-resilience.md](from-cve-chaos-to-resilience.md)  
 **Overview:**  
