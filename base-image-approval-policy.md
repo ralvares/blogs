@@ -1,13 +1,13 @@
 # Enforcing Approved Base Images in CI/CD Pipelines
 
 ## Purpose
-To ensure every container build in our organization starts from a trusted, secure base image — and that all changes to these definitions are tracked, reviewed, and auditable.
+To ensure every container build in our organization starts from a trusted, secure base image, and that all changes to these definitions are tracked, reviewed, and auditable.
 
 ---
 
 ###  Why This Matters
 
-Base images form the foundation of every container. Using unapproved or vulnerable base images introduces risk across the software supply chain — even before your application code is touched.
+Base images form the foundation of every container. Using unapproved or vulnerable base images introduces risk across the software supply chain, even before your application code is touched.
 
 **Risks include:**
 - ❗ Vulnerable or outdated packages
@@ -24,7 +24,7 @@ All changes to container build files (like Dockerfile or Containerfile) must go 
 
 #### ✅ Auditability
 
-Git gives us a complete history of every change — who changed what, when, and why. This is critical for security investigations and compliance audits.
+Git gives us a complete history of every change, who changed what, when, and why. This is critical for security investigations and compliance audits.
 
 #### ✅ Accountability
 
@@ -32,7 +32,7 @@ Every change must go through a PR. This ensures that no one bypasses controls, a
 
 #### ✅ Review Workflow
 
-PRs allow security and platform teams to review changes before they’re merged — especially base image updates, which have widespread impact.
+PRs allow security and platform teams to review changes before they’re merged, especially base image updates, which have widespread impact.
 
 #### ✅ Reproducibility
 
@@ -40,7 +40,7 @@ Centralized and version-controlled Dockerfiles make builds reproducible, enablin
 
 #### ✅ Change Governance
 
-With Git, we can enforce approvals and automated checks before changes are allowed — and we can even require security sign-off for sensitive image layers.
+With Git, we can enforce approvals and automated checks before changes are allowed, and we can even require security sign-off for sensitive image layers.
 
 > **Bottom Line:** Any change to a base image must be intentional, reviewed, and traceable. Git is the system of record that makes this possible.
 
