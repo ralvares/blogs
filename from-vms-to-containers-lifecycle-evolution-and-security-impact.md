@@ -1,16 +1,16 @@
 # Traditional VM Provisioning & Patching Flow
 
-In traditional VM environments, templates are used to provision multiple virtual machines. However, once a VM is created, it becomes **independent** — meaning updates to the template do **not** affect already provisioned machines.
+In traditional VM environments, templates are used to provision multiple virtual machines. However, once a VM is created, it becomes **independent**, meaning updates to the template do **not** affect already provisioned machines.
 
 ---
 
 ## How to Read the Diagram
 
 ### 1. **Template Creation**
-Here we have a virtual machine template — created in **January 2025**. It’s the starting point for provisioning new VMs.
+Here we have a virtual machine template, created in **January 2025**. It’s the starting point for provisioning new VMs.
 
 ### 2. **Provisioning VMs**
-Over the next few months, this template is used to provision three virtual machines — one in February, one in March, and one in April.
+Over the next few months, this template is used to provision three virtual machines, one in February, one in March, and one in April.
 
 ### 3. **A New CVE Is Discovered**
 In May 2025, a new vulnerability (e.g., **CVE-2022-1234**) is discovered. The template is updated with a patch.
@@ -24,7 +24,7 @@ The previously provisioned VMs (Feb–Apr) do **not inherit the patch**. They re
 ### 6. **Manual Patching Is Required**
 To patch these VMs, a tool like **Red Hat Satellite** must be used to manually deliver the updates.
 
-> 🔁 This manual lifecycle creates complexity and risk — especially at scale.
+> 🔁 This manual lifecycle creates complexity and risk, especially at scale.
 
 ---
 
@@ -75,7 +75,7 @@ Containers, by design, use an **immutable image model**. Instead of patching run
 #### 2. **Automated Patch Propagation**
 - When a new CVE is discovered, the base image is updated **once**.
 - All downstream application images are rebuilt automatically from the patched base.
-- Workloads are redeployed from these rebuilt images — no in-place patching, no manual intervention per workload.
+- Workloads are redeployed from these rebuilt images, no in-place patching, no manual intervention per workload.
 
 #### 3. **Immutability and Auditability**
 - Every image is versioned and signed; deployments are always from a known, trusted source.
@@ -85,7 +85,7 @@ Containers, by design, use an **immutable image model**. Instead of patching run
 - Since containers are replaced, not patched in place, there is no risk of VMs drifting out of compliance or missing patches.
 
 #### 5. **Speed and Scale**
-- Remediation is fast: fix the base, rebuild, redeploy — and every workload is protected.
+- Remediation is fast: fix the base, rebuild, redeploy, and every workload is protected.
 - This enables true DevSecOps and GitOps workflows, where security is embedded in the pipeline and enforced automatically.
 
 ---
@@ -123,5 +123,5 @@ graph TD
 
 > **Key Takeaway:**  
 > With containers, you move from reactive, manual patching to proactive, automated remediation.  
-> Fix the base image, rebuild, redeploy — and every workload is protected.  
+> Fix the base image, rebuild, redeploy, and every workload is protected.  
 > This is the foundation for scalable, resilient security in modern environments.
