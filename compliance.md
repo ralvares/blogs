@@ -26,7 +26,6 @@ Unless a theme explicitly lists “Additional Evidence”, capture this baseline
 3. Sample (sanitized) prior violation + its remediation closure proof
 4. External SIEM log / ticket reference linking alert → action
 5. Change history (Git / ticket ID) for material control adjustments
-Theme-specific “Additional Evidence” sections are supplements, not replacements—always collect the baseline unless a theme explicitly states an exception.
 
 ### Enforcement Failure Modes & Resilience (Consolidated)
 Understanding how controls behave under partial failure prevents silent coverage gaps. The table below summarizes typical failure / degradation scenarios and recommended guardrails.
@@ -95,7 +94,7 @@ Review Themes 1–9 in sequence for operational rollout; use Section 11 (Control
 
 ---
 ## 1. Image Provenance & Supply Chain Integrity (Build & Trust)
-**Representative Control Families:** NIST CM‑2 / CM‑6 / RA‑5; NIST 800‑190 4.1.x; PCI DSS 4.0 Requirement 6; HIPAA 164.308(a)(1), 164.312(c)(1).
+**Representative Control Families:** NIST CM‑2 / CM‑6 / RA‑5; NIST 800‑190 4.1.x; PCI DSS 3.2.1 & 4.0 Requirement 6; HIPAA 164.308(a)(1), 164.312(c)(1).
 
 ### Intent
 Assure only approved, scanned, signed, minimal, immutable images from trusted sources reach deploy.
@@ -128,7 +127,7 @@ Tampered or vulnerable images deliver exploitable components early; signature ga
 - Signed SBOM artifact (hash + timestamp)
 - Example signature verification admission log (success + rejection)
  - Exception (if any) showing controlled temporary fallback from block→warn with expiry
- - (If applicable) Secure coding pipeline evidence (SAST/DAST report hash) for public-facing apps (PCI Req 6 secure software development expectations)
+ - (If applicable) Secure coding pipeline evidence (SAST/DAST report hash) for public-facing apps (PCI 6.3.2)
 
 ---
 ## 2. Baseline Configuration & Drift Control
@@ -195,7 +194,14 @@ Enforce explicit ingress/egress flows; deny-by-default to limit lateral movement
 - NetworkPolicy: Primary L3/L4 segmentation primitive inside the cluster
 - Namespaces: Provide administrative scoping only — no isolation unless combined with NetworkPolicy
 - Service Mesh (optional): Adds mTLS identity and L7 authorization policies (external to RHACS)
-- Multus / UDN: Enable additional or alternate pod networks; traffic on those secondary or alternate networks is outside default NetworkPolicy scope (see Segmentation Clarification & Governance note below for unified handling and ownership requirements).
+- Multus: Enables secondary network interfaces; traffic on those interfaces bypasses primary cluster NetworkPolicy controls
+- User Defined Networks (UDN): Extends OVN-Kubernetes to support multiple logical networks:
+	- A UDN may serve as the alternate primary network for a namespace (only one primary) or as a secondary attachment
+	- Backends can be:
+		- localnet – VLAN-backed segment bridging into physical infrastructure
+		- Overlay (L2/L3 VRF) – logical networks isolated from other overlays
+		- Routed L3 fabric segment
+	- Security stance: treat each UDN as a separate security zone. Maintain an inventory of workloads per UDN, define ACL/firewall policies, and document all cross-UDN flows as explicit “inter-zone” rules.
 
 ### Key Actions
 1. Apply a deny-all ingress + deny-all egress NetworkPolicy in every namespace.
@@ -224,44 +230,6 @@ Document each extended control (owner + evidence) in the External Control Regist
 - NetworkPolicy coverage percentage over time (e.g., last 8 weeks)
 - Sample generated NetworkPolicy YAML + review ticket approval + before/after coverage diff
 - Example drift detection alert showing unexpected new connection
-
-### Workload Classification & Node Placement ("Compute Zones")
-When multiple data sensitivity or regulatory classifications (e.g., Public, Internal, Confidential, Restricted / PCI in-scope / PHI) must coexist on a single cluster, NetworkPolicies alone do not mitigate all residual risks (kernel escape, side-channel, noisy neighbor, forensic contamination). Introduce explicit compute zones that combine node-level segregation, scheduling constraints, and policy enforcement. Treat unapproved co-residency as a violation.
-
-Key Elements:
-1. Taxonomy: Publish ordered classification levels with examples + handling rules.
-2. Node Segmentation: Label & taint nodes per zone (`classification=restricted`, taint `classification=restricted:NoSchedule`).
-3. Scheduling Controls: Require pod label `data-classification=<level>` AND nodeSelector / affinity matching that label; higher classification pods tolerate only their zone taint.
-4. Admission / Policy Guardrails: RHACS deploy-time custom policy (or Gatekeeper/Kyverno – choose one authoritative) to enforce presence & consistency of classification labels, forbid privileged/hostNetwork in high zones.
-5. Namespace Strategy: Separate namespaces per classification (e.g., `apps-restricted`) plus deny-all ingress/egress; only explicit inter-zone NetworkPolicies allowed (justify each exception).
-6. Differential Enforcement: Stricter runtime actions (block vs alert) and shorter vuln SLAs for higher zones (e.g., Critical fix ≤48h for restricted, ≤7d baseline elsewhere).
-7. Secrets Handling: Enforce external vault references; block plain env secrets in restricted zone.
-8. Drift Detection: Daily job enumerates pods where `data-classification` label mismatches node label; zero tolerance—auto ticket.
-9. Residual Risk Register: Document shared kernel exposure & trigger conditions for migrating a zone to its own cluster (e.g., inability to meet accelerated patch SLA, regulatory mandate).
-10. Exception Workflow: Temporary co-residency requires exception ID, risk rationale, expiry, and approval (tracked in Exception Register).
-
-> Example enforcement logic (illustrative pseudocode – adapt to actual policy engine):
-> IF namespace matches /(apps-confidential|apps-restricted)/ THEN
->  require label data-classification present AND
->  require node selector key classification == data-classification label AND
->  forbid privileged OR hostNetwork=true for data-classification in (restricted)
-> VIOLATION if any condition fails
-> (Store actual JSON export in Git; reference commit hash in evidence.)
-
-Additional Evidence for Compute Zones:
-- Node label & taint inventory export (hash + timestamp)
-- RHACS classification enforcement policy export
-- Daily drift report (pod↔node classification mismatch) with uninterrupted date chain
-- Inter-zone flow matrix (approved NetworkPolicy exceptions) + ticket links
-- Vulnerability SLA matrix per zone + sample accelerated remediation proof
-- Exception register entries (if any) governing temporary deviations
-
-Escalate to Separate Clusters When:
-- Regulatory / contractual requirement for isolation beyond logical segmentation
-- Inability to consistently meet hardened SLA / patch cadence for shared nodes
-- Frequent contention or noisy neighbor undermining zone guarantees
-
-Document the decision criteria so auditors see a rational progression plan from single-cluster multi-zone to multi-cluster architecture if/when triggers occur.
 
 ---
 ## 5. Resource Governance & Availability
@@ -385,7 +353,7 @@ Do **not** rely on this as primary control—treat it as a compensating “last 
 
 ---
 ## 9. Logging, Reporting & Continuous Evidence
-**Representative Controls:** PCI Req 10 (4.0), NIST SI‑4 / IR‑5 / IR‑6(1) / AU‑6 / AU‑12; HIPAA 164.312(b), 164.308(a)(1)(ii)(D).
+**Representative Controls:** PCI Req 10 (3.2.1 & 4.0 evolutions), NIST SI‑4 / IR‑5 / IR‑6(1) / AU‑6 / AU‑12; HIPAA 164.312(b), 164.308(a)(1)(ii)(D).
 
 ### Intent
 Maintain immutable, correlated, reviewable evidence of control operation & exceptions.
@@ -444,12 +412,8 @@ Coverage Legend: (C) Covered (core technical control in RHACS) / (P) Partial (ev
 > Nuance: “C” denotes the *core technical aspect* is enforceable/observable in RHACS assuming prerequisite configuration (e.g., admission webhook enabled, collector healthy). A temporary downgrade (policy in warn mode, webhook fail-open) should be treated as a *time-bound exception* and tracked. Reclassify to “P” if sustainable enforcement is not yet in place.
 
 ---
-## Appendix A – PCI DSS Detailed Mapping (Req 2, 6, 7, 10 + 4.0 Key Concepts)
+## Appendix A – PCI DSS Detailed Mapping (Req 2, 6, 7, 10 + 4.0 Delta)
 Each row includes a coverage tag.
-
-Important: Decimal-level PCI DSS 4.0 sub-references are intentionally omitted in this end-user guide. Use QSA-reviewed internal Appendix G for paragraph-level mapping.
-
-Note: PCI DSS 4.0 refines and, in some areas, renumbers prior version sub-requirements (notably within Requirements 6 and 10). This guide intentionally cites PCI DSS 4.0 *at the requirement level* (e.g., "PCI Req 6", "PCI Req 10") to prevent mis-citation of paragraph decimals in customer-facing material. Paragraph / decimal-level references (e.g., 6.x, 10.x.x.x) are maintained only in an internal, QSA-reviewed Appendix G and are excluded here.
 
 ### A.1 Requirement 2 & 6
 | PCI Sub‑Req | Theme | Summary | Coverage | Notes |
@@ -460,7 +424,7 @@ Note: PCI DSS 4.0 refines and, in some areas, renumbers prior version sub-requir
 | 6.1 | 6 | Identify vulns | C | Continuous image scanning |
 | 6.2 | 6 | Timely patch | P | Enforceable, but patch action external |
 | 6.3 / 6.3.1 | 1 | Secure dev & remove test data | P | Build eval + secret detection |
-| Req 6 (4.0 secure software dev) | 1 / External | Secure software development & code review / WAF expectations (generalized) | P | See Theme 1 caveats (generalized); supersedes legacy 3.2.1 decimals (6.3.x). Full secure coding (SAST/DAST, dependency & IaC scanning) via RHTAP/AppSec pipeline (export scan reports + hash) |
+| 6.3.2 (4.0) | 1 / External | Secure coding practices for public-facing apps | P | See Theme 1 caveats: RHACS gates risky deploy configs; full secure coding (SAST/DAST, dependency & IaC scanning) via RHTAP/AppSec pipeline (export scan reports + hash) |
 | 6.4 / 6.4.1 / 6.4.2 | 2 / 3 / 6 | Change control, env & duty separation | P | Evidence of violations + RBAC; process external |
 | 6.5.x | 1 / 6 | Coding vulns | P | Library CVEs; need SAST/DAST |
 | 6.6 | 7 / 9 | Web app protection | P | Runtime anomaly ≠ WAF |
@@ -472,20 +436,55 @@ Note: PCI DSS 4.0 refines and, in some areas, renumbers prior version sub-requir
 | 7.2 / 7.2.1–7.2.3 | 3 / 4 | Access system & default deny | C/P | RBAC + NetworkPolicies; default deny proven via coverage |
 
 ### A.3 Requirement 10
-| 4.0 Sub‑Req | Theme | Focus | Coverage | Notes |
-|-------------|-------|-------|----------|-------|
+| Sub‑Req (3.2.1 / 4.0) | Theme | Focus | Coverage | Notes |
+|------------------------|-------|-------|----------|-------|
 | 10.1 / 10.2.x / 10.3.x | 7 / 9 | Event linkage, capture & detail | P | RHACS security events only |
 | 10.5.x | 9 | Protect log integrity | P | External SIEM WORM required |
 | 10.6 | 9 | Daily review | P | Dashboards aid; process external |
 | 10.7 | 9 | Retention | E | External retention controls |
-| 10.4.1.3 (logging failure detect) | 9 | Pipeline failure alerting | C/P | Add health checks + alert policy |
+| 4.0 – logging failure detect | 9 | Pipeline failure alerting | C/P | Add health checks + alert policy |
 
-### A.4 4.0 Key Concepts
+### A.4 4.0 Delta Concepts
 | Concept | Theme | Enhancement | Coverage | Notes |
 |---------|-------|------------|----------|-------|
 | Targeted Risk Analysis | 6 / 9 | Risk-based timing deviations | E | Store TRA artifacts externally |
 | Customized Approach | Any | Alternative control design | E | Documentation + validation external |
 | Software Component Inventory | 1 / 6 | Formal inventory integrity | P | Partial via image+component metadata |
+
+### A.2 Additional PCI Requirements (Context & Gap Clarification)
+This clarifies frequently asked PCI areas beyond Req 2, 6, 7, 10 where RHACS is only partial or out-of-scope.
+
+| PCI Requirement | Relevance to Container/RHACS | Theme(s) | Coverage | Notes / Evidence Pointer |
+|-----------------|------------------------------|----------|----------|--------------------------|
+| Req 1 (Firewalls & Segmentation) | Internal east/west segmentation via NetworkPolicy | 4 | C/P | RHACS shows coverage & flows; perimeter & CDE boundary firewalls external. Provide NetworkPolicy manifests + external firewall diagram. |
+| Req 3 (Protect Stored CHD) | Data encryption / key mgmt, tokenization | External | E | KMS, tokenization platform evidence. |
+| Req 4 (Transmission Encryption) | TLS/mTLS for CHD in transit | 4 | E | Service mesh / ingress TLS configs. |
+| Req 5 (Anti‑Malware) | Containers rely on vuln mgmt + allowlist | 6 / 7 | P | Suspicious process detection; traditional AV external. Compensating control rationale needed. |
+| Req 8 (Authentication) | User authN, MFA | 3 / External | E | IdP/OAuth export + MFA policy. |
+| Req 9 (Physical) | Data center controls | External | E | Provider SOC2/ISO. |
+| Req 11 (Testing) | Segmentation tests, pen tests | 4 / 6 / External | P/E | RHACS continuous scanning; quarterly/annual tests external. |
+| Req 12 (Policies) | Governance program | External | E | Security policies & risk assessments. |
+
+Coverage Legend: C = Core; P = Partial; E = External.
+
+### A.3 PCI 4.0 Customized Approach / Targeted Risk Analysis Handling
+Maintain a Targeted Risk Analysis (TRA) record for any deviation (e.g., different vuln remediation timelines). Include objective, alternative technique, residual risk, approver, revalidation date.
+
+### A.4 Minimal PCI Evidence Bundles
+| Objective | RHACS Artifact | External Artifact | Narrative |
+|-----------|---------------|-------------------|-----------|
+| Segmentation (Req 1) | NetworkPolicy coverage export | Firewall / mesh policy | Layered internal & perimeter isolation. |
+| Vulnerability Mgmt (Req 6) | Blocked Critical CVE deploy log | Rebuild pipeline log | Enforced remediation workflow. |
+| Access (Req 7) | RBAC diff (quarterly) | IAM role design approval | Demonstrates least privilege maintenance. |
+| Logging (Req 10) | Daily export hash index | SIEM WORM retention config | Integrity & retention chain. |
+| Change Control (Req 6.4) | Policy JSON commit hash | CAB ticket referencing hash | Traceable approved change. |
+
+### A.5 PCI Quick Gap Checklist
+1. Any namespace lacking deny-all baseline policy? (Req 1 risk)
+2. Critical fixable CVE past SLA? (Req 6 gap)
+3. >1 cluster-admin group? (Req 7 gap)
+4. Missing a daily export hash? (Req 10 evidence gap)
+5. Customized approach without TRA? (4.0 deficiency)
 
 ---
 ## Appendix B – NIST 800‑53 Runtime / Incident Subset
@@ -496,6 +495,70 @@ Note: PCI DSS 4.0 refines and, in some areas, renumbers prior version sub-requir
 | IR‑5 | 7 | C | Active runtime detection policies |
 | IR‑6(1) | 7 / 9 | C | Notifier automation evidences reporting |
 | AU‑6 / AU‑12 | 9 | P | Supplemental events only (not full audit) |
+
+### B.1 Expanded NIST 800‑53 Mapping (Selected High‑Relevance Controls)
+Focused on Moderate baseline (Rev 5) control families most often cited in platform/container security audits. Not exhaustive; omit families with minimal direct technical tie (e.g., PE – Physical) or purely programmatic (e.g., PM) where RHACS offers no evidence. Use this as a *translation accelerator*, not a replacement for a formal System Security Plan (SSP).
+
+| Control (Rev5) | Control Title (Abbrev) | Primary Theme(s) | Coverage | Notes / RHACS Contribution & Boundaries |
+|----------------|------------------------|------------------|----------|-----------------------------------------|
+| AC‑2 / AC‑2(1) | Account Management / Automated Disable | 3 | P | RHACS surfaces cluster‑admin subjects; lifecycle (provision/disable) external IAM |
+| AC‑3 | Access Enforcement | 3 / 4 | P | RBAC & NetworkPolicy evidence; enforcement primitives are Kubernetes/OpenShift |
+| AC‑6 / AC‑6(1) | Least Privilege / Authorizations | 3 | C/P | Detection of over‑privileged configs; granting/approval workflow external |
+| AC‑17 / AC‑17(2) | Remote Access / AuthN Strength | 3 / External | E | SSH / console / IdP MFA outside RHACS scope |
+| AC‑19 | Access Control for Mobile / BYOD | External | E | Not applicable to cluster internal workloads |
+| AU‑2 / AU‑2(3) | Event Logging / Central Review | 9 | P | RHACS emits security events; full audit set + central correlation external |
+| AU‑6 / AU‑6(3) | Audit Review / Correlation | 9 | P | Provides subset feed; SIEM correlation rules external |
+| AU‑8 | Time Stamps | 9 | E | Relies on cluster/node NTP; include platform time sync evidence |
+| AU‑9 / AU‑9(2) | Audit Protection / Tamper Resistance | 9 | P/E | Need WORM/object lock externally; RHACS export hashing supports integrity chain |
+| AU‑12 | Audit Generation | 9 | P | Generates security telemetry only (not kernel/sys calls) |
+| CA‑7 | Continuous Monitoring | 1–9 | P | RHACS continuous scans/policies contribute; SSP control strategy broader |
+| CM‑2 / CM‑2(2) | Baseline Configuration / Automation | 1 / 2 | C/P | Policy set + drift detection; baseline definition & approval external |
+| CM‑3 | Configuration Change Control | 1 / 2 / 6 | P | Evidence: policy/vuln change diffs; formal CAB process external |
+| CM‑5 | Access Restrictions for Changes | 3 | P | RBAC visibility; enforcement of Git change approvals external |
+| CM‑6 | Configuration Settings | 1 / 2 | C/P | Misconfig policies enforce; full hardening catalog external doc |
+| CM‑7 / CM‑7(1) | Least Functionality / Prevent Unauthorized Software | 1 / 2 / 7 | P | Detect risky binaries/process anomalies; allow/deny list governance external |
+| CP‑9 | Information System Backup | External | E | Backup & restore validation outside RHACS; log linkage in External Register |
+| CP‑10 | System Recovery | External | E | DR exercises & RTO metrics external |
+| IR‑4 / IR‑4(5) | Incident Handling / Automated Response | 7 | C | Runtime policies with actions + notifier chain |
+| IR‑5 | Incident Monitoring | 7 | C | Continuous runtime anomaly & policy violation monitoring |
+| IR‑6 / IR‑6(1) | Incident Reporting / Automated Reporting | 7 / 9 | C | Notifiers to SIEM/ticket produce automated reporting evidence |
+| IR‑8 | Incident Response Plan | External | E | Plan authoring & maintenance outside RHACS |
+| MA‑4 | Nonlocal Maintenance | External | E | Not in product scope (platform ops) |
+| RA‑5 / RA‑5(2) | Vulnerability Monitoring / Update Mechanisms | 6 | C/P | Image/component scanning + fixable gating; host & non-container assets external |
+| SA‑11 | Developer Security Testing | 1 / 6 | P | Enforces post-build config/vuln gates; SAST/DAST executed externally |
+| SA‑15 | Development Process / Standards | External | E | Secure SDLC policy/procedure outside scope; RHACS provides gate evidence |
+| SC‑6 | Resource Availability Protection | 5 | C/P | Detect missing limits; quota enforcement by platform |
+| SC‑7 / SC‑7(3)/(4) | Boundary Protection / Segmentation / Deny by Default | 4 | C/P | NetworkPolicy coverage analytics; L7/WAF/mTLS external |
+| SC‑8 / SC‑8(1) | Transmission Confidentiality & Integrity / Cryptographic Protection | 4 / External | E | TLS/mTLS configuration external (service mesh/ingress) |
+| SC‑13 | Cryptographic Protection (At Rest) | External | E | etcd/storage encryption outside RHACS |
+| SC‑28 | Protection of Information at Rest | External | E | Storage class / volume encryption external |
+| SI‑2 | Flaw Remediation | 6 | C/P | Detects vulnerable images; remediation action in pipelines |
+| SI‑3 | Malicious Code Protection | 7 | P | Limited to suspicious process patterns; no signature AV engine |
+| SI‑4 / SI‑4(2)/(4) | System Monitoring / Indicators / Traffic Anomalies | 7 / 9 | C/P | Process & network baseline; deep packet / IDS external |
+| SI‑5 | Security Alerts / Advisories | 6 / 9 | P | CVE data ingest; enterprise advisory mgmt external |
+| SI‑7 | Software / Information Integrity | 1 / 8 | C/P | Detect secret exposure, enforce signed images; full integrity chain external (signing infra) |
+| SI‑10 | Information Input Validation | External | E | Needs app/API layer controls (WAF, validation libs) |
+| SR‑11 | Component Authenticity | 1 | P | Signature presence policy; attestation chain & key custody external |
+
+Legend Recap: C = Core technical enforcement/evidence in RHACS (assuming prerequisite config). P = Partial (produces some evidence or detects violations but relies on external systems/processes). E = External (implement & evidence outside RHACS; may correlate with RHACS artifacts).
+
+> Implementation Tip: When building an SSP, cite this table and then link each (P) / (E) control to either (a) platform configuration export (e.g., NetworkPolicy manifests, SCC profiles, mesh mTLS policy) or (b) governance artifacts (CAB approvals, IR plan version). For (C) items, embed RHACS policy JSON export hash + sample violation or compliance report line item.
+
+### B.2 Tailoring & Gaps
+1. Tailor out controls not applicable to container platform scope (e.g., AC‑19) to prevent artificial gap listings.
+2. For each (E) control, ensure an owner appears in the External Control Register (Appendix E) — absence indicates governance risk.
+3. For mixed controls (C/P), define an internal rule: treat an unmet prerequisite (e.g., admission webhook fail‑open) as temporary downgrade → mark exception with expiry.
+4. Maintain a delta log: when RHACS adds functionality narrowing a (P) control toward (C), update this appendix and version the change (auditors appreciate traceability).
+
+### B.3 Minimal Evidence Bundles (Examples)
+| Control Focus | RHACS Artifact | External Artifact | Sufficiency Rationale |
+|---------------|---------------|-------------------|-----------------------|
+| RA‑5 (Vuln Monitoring) | Vulnerability report export (timestamp + hash) | Pipeline rebuild log referencing digest | Shows detection + remediation action chain |
+| SC‑7 (Segmentation) | NetworkPolicy coverage trend graph | Mesh mTLS policy export + firewall ACL (if hybrid) | Demonstrates L3/L4 deny + L7 identity layering |
+| CM‑2 (Baseline Config) | Policy set JSON (signed commit) | Hardening standard doc version | Maps policy enforcement back to approved baseline |
+| IR‑4(5) (Automated Response) | Runtime policy kill/scale action log | Incident ticket with closure notes | Links automated containment to human follow‑up |
+| AU‑9 (Audit Protection) | Hash chain index of daily exports | Object store WORM policy export | Proves tamper resistance of stored evidence |
+
 
 ---
 ## Appendix C – HIPAA 164 Mapping (Selected)
@@ -511,8 +574,37 @@ Note: PCI DSS 4.0 refines and, in some areas, renumbers prior version sub-requir
 | 164.312(d) | 3 | P | Auth context (service accounts); MFA external |
 | 164.312(e) | 4 | P | Network segmentation evidence; encryption external |
 
-> Platform Clarification: OpenShift OAuth idle timeout addresses auto logoff; cluster/etcd + storage class encryption cover encryption at rest. Export both configs (yaml/json) as signed artifacts for evidence.
-> Evidence Export Note: Export (a) OAuth session timeout configuration (yaml/json) and (b) encryption-at-rest enablement manifests (etcd + storage class) as signed artifacts; store with quarterly HIPAA safeguard evidence bundle.
+> HIPAA Platform Clarification: OpenShift OAuth idle timeout settings address automatic logoff expectations; cluster / etcd encryption and storage class encryption (where enabled) address encryption-at-rest expectations. Include platform configuration exports (sans secrets) as external evidence.
+> Evidence Export Note: Export (a) OAuth session timeout configuration (yaml/json) and (b) encryption-at-rest enablement manifests (etcd + storage class) as signed artifacts; store alongside quarterly HIPAA technical safeguard evidence bundle.
+
+### C.1 Additional HIPAA Safeguard Clarifications
+| Citation | Safeguard Area | Theme(s) | Coverage | Notes |
+|----------|----------------|----------|----------|-------|
+| 164.308(a)(1)(i) | Risk Analysis | 1–9 | P/E | RHACS metrics feed risk; formal analysis external. |
+| 164.308(a)(5) | Security Awareness | External | E | Training & phishing exercises external. |
+| 164.308(a)(7) | Contingency Plan | 5 / External | E | DR / backup tests external; quotas aid availability (partial). |
+| 164.308(a)(8) | Evaluation | 9 | P | Continuous exports support evaluation; structured evaluation plan external. |
+| 164.310 (Physical) | Facility Access | External | E | Cloud/DC attestations. |
+| 164.312(a)(2)(i) | Unique User ID | 3 | P | Service account governance; human identity via IdP. |
+| 164.312(f) | Emergency Access | External | E | Break-glass IdP roles; reference exception register. |
+
+### C.2 HIPAA Evidence Bundle Examples
+| Focus | RHACS Artifact | External Artifact | Narrative |
+|-------|---------------|-------------------|----------|
+| Integrity | Blocked unsigned image log | Cosign verify output + key SOP | Demonstrates deploy integrity control. |
+| Audit Controls | Security event export hash | SIEM PHI access log sample | Correlates infra security with PHI audit trail. |
+| Transmission Security | NetworkPolicy manifest | Ingress/mTLS config export | Shows segmentation + encryption layers. |
+| Risk Management Input | Vuln & misconfig trend export | Formal Risk Assessment report | Quantitative feed into risk process. |
+
+### C.3 HIPAA Quick Gap Checks
+1. Unsigned image in production? (Integrity risk)
+2. Privileged container exception without expiry? (Access safeguard gap)
+3. Missing daily security event export hash? (Audit evidence gap)
+4. No key rotation proof (<12 months)? (Integrity/encryption supporting gap)
+5. DR test older than policy interval? (Contingency gap)
+
+### C.4 Tailoring Statement
+State RHACS is not the system of record for PHI access logs; it supplies infrastructure-layer security telemetry only.
 
 ---
 ## Appendix D – NIST SP 800‑190 Section 4.1.x
@@ -535,6 +627,41 @@ Note: PCI DSS 4.0 refines and, in some areas, renumbers prior version sub-requir
 
 Legend: * items with platform or process focus outside RHACS core are marked (P) Partial or (E) External.
 
+### D.1 Additional 800‑190 Sections (Selected)
+| Ref | Area | Theme(s) | Coverage | Notes |
+|-----|------|----------|----------|-------|
+| 4.2.1 | Orchestrator Access Control | 3 | P | RBAC visibility; strong authN external. |
+| 4.2.2 | Segmentation & Network Policy | 4 | C/P | Coverage analytics; L7 policies external. |
+| 4.2.3 | Secret Management | 8 | P/E | Leak detection; vault & rotation external. |
+| 4.2.4 | Limit Privileges | 2 / 3 | C/P | Non-root & capability policies; host hardening external. |
+| 4.2.5 | Resource Controls | 5 | C/P | Missing limits detection; quota enforcement platform. |
+| 4.2.6 | Logging & Monitoring | 7 / 9 | P | Security event subset only. |
+| 4.2.7 | Admission & Policy Enforce | 1 / 2 | C/P | Misconfig & vuln gating; require fail-closed config. |
+| 4.3.1 | Host Hardening | External | E | CIS benchmark outside scope. |
+| 4.3.2 | Host Vulnerabilities | External | E | Host scanning agents external. |
+| 4.4.1 | Registry Security | 1 | P | Allowed registry policy; registry RBAC external. |
+| 4.4.2 | Build Integrity | 1 / 6 | P | Gate on outputs; provenance attestations external. |
+| 4.5.1 | Runtime Threat Detection | 7 | C/P | Baselines + patterns; deep forensics external. |
+| 4.5.2 | IR Integration | 7 / 9 | C/P | Notifiers feed IR; runbooks external. |
+
+### D.2 800‑190 Evidence Bundles
+| Focus | RHACS Artifact | External Artifact | Narrative |
+|-------|---------------|-------------------|----------|
+| Segmentation | Coverage % + flow graph | Firewall/mesh policy export | Shows layered segmentation. |
+| Secrets | Secret violation trend | Vault rotation report | Shows detection feeding managed rotation. |
+| Build Integrity | Blocked unsigned image log | Pipeline attestation (SLSA/in‑toto) | Links gate to provenance proof. |
+| Runtime Detection | Runtime alert → ticket | IR ticket with closure | Demonstrates detection to response chain. |
+
+### D.3 Quick Gap Check
+1. Image from unapproved registry? (4.4.1)
+2. Namespace missing deny-all baseline? (4.2.2)
+3. Privileged container present? (4.2.4)
+4. Missing attestation for critical service image? (4.4.2)
+5. Collector coverage <100% nodes? (4.5.1 risk)
+
+### D.4 Tailoring Note
+Document that deep packet inspection, full memory forensics, and persistent packet capture are out-of-scope; list compensating tools in External Control Register.
+
 ## Appendix E – External Control Register (Sample Template)
 Use this table internally (expand per environment). Populate “Status” with: Green (current evidence), Amber (evidence aging – review soon), Red (evidence missing / expired).
 
@@ -548,7 +675,7 @@ Use this table internally (expand per environment). Populate “Status” with: 
 | Data-at-Rest Encryption | Storage classes, database | Infra / DB | Encryption enablement evidence | Annual | YYYY-MM-DD | Green | Cross-check new storage class defaults |
 | Network Encryption (TLS / Mesh) | mTLS, ingress TLS | Platform / NetSec | Mesh policy export + cert inventory | Quarterly | YYYY-MM-DD | Green | Expiring cert alert threshold 30d |
 | WAF / API Gateway Protection | OWASP rules, DDoS | AppSec | WAF policy export + sampled logs | Monthly | YYYY-MM-DD | Green | Include anomaly score trend |
-| SAST / DAST / Code QA (PCI Req 6) | Static + dynamic testing incl. dependency & IaC scans | AppSec / RHTAP | Signed scan report bundle (hash chain) + pipeline run ID | Per Release | YYYY-MM-DD | Amber | Coverage gap in legacy service X; correlate run ID to blocked deploy evidence |
+| SAST / DAST / Code QA (PCI 6.3.2) | Static + dynamic testing incl. dependency & IaC scans | AppSec / RHTAP | Signed scan report bundle (hash chain) + pipeline run ID | Per Release | YYYY-MM-DD | Amber | Coverage gap in legacy service X; correlate run ID to blocked deploy evidence |
 | License Compliance / SBOM Legal | OSS license scans | Legal / AppSec | License scan diff + approvals | Quarterly | YYYY-MM-DD | Green | Automate accept/deny list sync |
 | Backup & DR | Snapshot & restore tests | Infra | DR test report + RPO/RTO metrics | Semi-Annual | YYYY-MM-DD | Amber | Next restore test scheduled |
 | Log Retention & Immutability | SIEM, Object store | SecOps | Retention config + WORM policy export | Annual | YYYY-MM-DD | Green | Confirm legal hold handling |
