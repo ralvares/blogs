@@ -609,6 +609,12 @@ Legend Recap (Appendix B): Column-specific. OCP: OpenShift/RHCOS primitives. RHA
 ### C.4 Tailoring Statement
 State RHACS is not the system of record for PHI access logs; it supplies infrastructure-layer security telemetry only.
 
+### C.5 HIPAA Scope Statement (PHI Access Logging & Data Handling)
+Use (or adapt) the following statement in audit packets to pre‑empt scope inflation around Protected Health Information (PHI) access monitoring:
+> HIPAA technical safeguard evidence in this guide is limited to container platform and workload infrastructure controls (configuration enforcement, vulnerability/risk gating, segmentation, runtime anomaly detection, and supporting security telemetry). Application-layer PHI access events, database query logs, EHR system activity, and patient data masking/tokenization controls are maintained and evidenced by external systems (see External Control Register). RHACS and OpenShift do not serve as the system of record for PHI read/write, disclosure, or user-level access logs; they provide only infrastructure security context (policy violations, runtime anomalies, configuration drift) that may supplement investigations. Any request for PHI access trails should be redirected to the designated application/DB logging owners identified in the External Control Register.
+
+Implementation Note: Include this scope statement alongside the Appendix G scope declaration in HIPAA audit readiness binders. If an auditor requests PHI access samples, respond using the redirect pattern (Appendix G.6) and cite this subsection.
+
 ---
 ## Appendix D – NIST SP 800‑190 Section 4.1.x
 | Ref | Theme | OCP | RHACS | External | Intent |
@@ -773,9 +779,8 @@ RHCOS (Red Hat Enterprise Linux CoreOS) is a **transactional, controlled** opera
 1. **Signed Content:** OS updates delivered as signed OSTree commits (Red Hat content trust chain).
 2. **Declarative State:** Desired node configuration declared via MachineConfig objects; drift visible and reconciled.
 3. **Controlled Update Pipeline:** Cluster version operator orchestrates staged, verified rollouts (supports change evidence via version + commit IDs).
-4. **SELinux Enforcing:** Mandatory access control assures workload confinement; include `getenforce` sampling or node inventory export.
-5. **Rollback Capability:** Transactional model allows reversion if an update introduces risk—document rollback tests periodically.
-6. **No Assumption of Absolute Immutability:** Local alterations outside MachineConfig (emergency debug) must be treated as *exceptions* and remediated (or codified) quickly; evidence = diff + closure ticket.
+4. **SELinux Enforcing:** Mandatory access control assures workload confinement.
+5. **No Assumption of Absolute Immutability:** Local alterations outside MachineConfig (emergency debug) must be treated as *exceptions* and remediated (or codified) quickly; evidence = diff + closure ticket.
 
 Evidence Bundle (Example):
 - MachineConfig YAML (signed commit) + associated OSTree commit IDs.
@@ -844,7 +849,7 @@ Version this Appendix (G) independently; any addition/removal of in-scope compon
 
 ---
 ## 15. Summary
-Combining RHACS (visibility, policy gating, runtime telemetry, evidence exports) with OpenShift (SCC, NetworkPolicy, signature verification, admission & RBAC primitives) yields a continuously validated control stack covering major container security expectations across NIST, PCI DSS, HIPAA, and NIST 800‑190. Focus on measurable reduction (vuln backlog, misconfig drift, alert noise) while maintaining immutable evidence.
+Combining RHACS (visibility, policy gating, runtime telemetry, evidence exports) with OpenShift (SCC, NetworkPolicy, signature verification, admission & RBAC primitives) yields a continuously validated control stack covering major container security expectations across NIST, PCI DSS, HIPAA, and NIST 800‑190. Focus on measurable reduction (vuln backlog, misconfig drift, alert noise) while maintaining tamper‑resistant, cryptographically verifiable evidence.
 
 > Sustained compliance emerges from disciplined engineering feedback loops: enforce baselines, measure risk reduction, automate evidence, iterate.
 
