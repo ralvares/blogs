@@ -712,6 +712,89 @@ Add this register to compliance review packs; each RED item should have a remedi
 > Use this index to pre-empt auditor “scope inflation” questions: for each shared control, you present split responsibilities plus cohesive evidence chain.
 
 ---
+## Appendix G – Scope & Boundary Declaration
+This appendix defines the authoritative scope boundaries for the evidence and control coverage described in this guide. Use it verbatim (with environment-specific substitutions) at the start of an audit cycle to suppress mis-scoping and to direct auditors to the correct authoritative systems.
+
+### G.1 In-Scope Technical Components (Evidence-Producing / Enforceable)
+| Component | Scope Description | Included Control Surface | Evidence / Enforcement Artifacts |
+|-----------|-------------------|---------------------------|----------------------------------|
+| Red Hat Advanced Cluster Security (RHACS / Central, Sensor, Collector, Admission Controller) | Workload & cluster security visibility and policy gating | Image & component scanning, deploy misconfig policy, runtime process & network baseline anomalies, admission enforcement, secret pattern detection | Policy JSON exports, violation & compliance reports, runtime alert logs, admission block events, vulnerability trend exports |
+| OpenShift Kubernetes Control Plane (API Server, Scheduler, Controller Manager, etcd) | Cluster orchestration & API surface | RBAC, admission ordering context, audit & event stream (via forwarding) | RBAC export diffs, audit log excerpts (external SIEM), API server config (selected) |
+| OpenShift RHCOS Worker & Master Nodes (Transactional OS) | Node execution environment for containers | Controlled OS image via OSTree, MachineConfig-managed configuration, SELinux enforcing, cgroups isolation | MachineConfig diff history, OSTree commit IDs, `oc get mc` + `oc get mcp` status, SELinux mode evidence |
+| Machine Config Operator (MCO) | Declarative node configuration management | Applied MachineConfig, enforced kernel args, file drop-ins | Signed MachineConfig YAML commits, MCO status reports |
+| Compliance Operator (if deployed) | Automated benchmark scanning (e.g., CIS profiles) | Node & cluster config rule evaluation | Scan report summaries, rule pass/fail deltas |
+| Security Profiles Operator (SPO) (if deployed) | SELinux / Seccomp profile lifecycle | Distribution & attachment of custom seccomp/SELinux profiles | Profile YAML, attachment manifests, audit logs referencing profile enforcement |
+| Gatekeeper / OPA (if deployed) | Constraint-based policy evaluation | Additional admission guards (naming, labels, custom invariants) | ConstraintTemplate & Constraint YAML (signed), violation events |
+| Red Hat Supported Operators (e.g., Quay, Logging, Service Mesh) where explicitly referenced | Supplemental security-related telemetry or enforcement | Image signing verification (Quay), mTLS policy (Service Mesh), cluster logging export | Operator config exports, mesh policy manifests, signing verification logs |
+
+### G.2 Explicit Out-of-Scope Areas
+These areas are acknowledged dependencies or complementary controls but **not** in evidentiary scope for RHACS/OpenShift security enforcement in this guide. They must produce their own artifacts (tracked in External Control Register / Appendix E):
+| Domain | Out-of-Scope Rationale | Primary System(s) | Required External Evidence |
+|--------|-----------------------|-------------------|----------------------------|
+| Enterprise IAM / MFA / SSO | User identity lifecycle & strong auth handled upstream | IdP (Keycloak, Okta, AAD, etc.) | MFA policy doc, IdP config snapshot, access review reports |
+| Non-RHCOS Host OS Hardening / Bare Metal / Ancillary VMs | Guide centers on managed RHCOS nodes; other OS baselines differ | RHEL, Windows Server, Hypervisor layer | CIS benchmark reports, patch cadence, hardening scripts |
+| Vault / Key Lifecycle Management | Secrets storage, rotation, escrow, key destruction | HashiCorp Vault, KMS (AWS KMS, Azure Key Vault), HSM | Key policy JSON, rotation logs, vault audit log excerpt |
+| SAST / DAST / IaC Scanning | Application & infrastructure code analysis outside runtime/deploy gating | CI/CD security tools (SonarQube, CodeQL, Checkov, Trivy IaC) | Scan reports (hash), remediation tickets, pipeline run IDs |
+| Software Composition Analysis License Governance | Legal & license risk not enforced in RHACS | Dependency/license scanner | License scan diff, approval register |
+| Backup & Disaster Recovery | Data/state resilience, restore validation | Backup platform, DR orchestration | DR test report, RPO/RTO metrics, backup integrity log |
+| Business Continuity / BIA | Organizational process domain | GRC tooling | BIA document, review approval |
+| WAF / API Gateway / L7 Threat Mitigation | Application-layer security beyond L3/L4 policy | API Gateway, WAF, CDN | WAF policy export, sampled blocked request logs |
+| IDS / IPS / Deep Packet Inspection | Packet payload & advanced signature analysis | Network IDS/IPS, eBPF sensors | Alert sample, rule pack version, coverage map |
+| SIEM Correlation & Advanced Analytics | Cross-domain event normalization & correlation logic | SIEM / UEBA platform | Correlation rule pack diff, suppression list, dashboard screenshot |
+| Central Log Retention, WORM Storage | Long-term immutable storage & legal hold | Object store (S3 Object Lock, GCS), SIEM archive | Retention policy export, object lock configuration, hash chain index |
+| Data Encryption (At Rest & In Transit) Beyond Cluster Defaults | TLS termination, database/storage encryption lifecycle | Mesh, Ingress Controller, DB/KMS | TLS cipher policy, cert inventory, encryption enablement evidence |
+| Incident Response Runbooks & Forensic Procedures | Human process & deep forensic tooling | IR platform, playbook repository | Runbook version hash, tabletop exercise report |
+| Advanced Forensics & Memory Analysis | Memory/disk timeline, packet capture beyond RHACS telemetry | Forensics suite / EDR | Memory dump procedure, forensic artifact chain of custody |
+| Host Vulnerability Management Outside Container Images | Kernel & package CVEs on host OS beyond image layer | Host scanning agents | Host vuln report, remediation SLA metrics |
+| Data Privacy / PHI Access Auditing | Application-level data access not visible to RHACS | App logs, DB audit logs | PHI access log sample, masking/tokenization report |
+
+### G.3 RHCOS Transactional (Controlled) vs “Immutable” Clarification
+RHCOS (Red Hat Enterprise Linux CoreOS) is a **transactional, controlled** operating system managed via OSTree + MachineConfig Operator, not strictly immutable. Key assurance anchors:
+1. **Signed Content:** OS updates delivered as signed OSTree commits (Red Hat content trust chain).
+2. **Declarative State:** Desired node configuration declared via MachineConfig objects; drift visible and reconciled.
+3. **Controlled Update Pipeline:** Cluster version operator orchestrates staged, verified rollouts (supports change evidence via version + commit IDs).
+4. **SELinux Enforcing:** Mandatory access control assures workload confinement; include `getenforce` sampling or node inventory export.
+5. **Rollback Capability:** Transactional model allows reversion if an update introduces risk—document rollback tests periodically.
+6. **No Assumption of Absolute Immutability:** Local alterations outside MachineConfig (emergency debug) must be treated as *exceptions* and remediated (or codified) quickly; evidence = diff + closure ticket.
+
+Evidence Bundle (Example):
+- MachineConfig YAML (signed commit) + associated OSTree commit IDs.
+- `oc adm release info` output (release image signature) captured & hashed.
+- SELinux enforcing status sample across nodes.
+- Exception log (if any) for manual node changes with remediation.
+
+### G.4 Scope Statement (Sample Language)
+Use this statement in audit introductions:
+> The scope of container platform security evidence covers workload and cluster security controls enforced and/or evidenced by RHACS, OpenShift control plane components, transactional RHCOS nodes (via MachineConfig & OSTree), and designated Red Hat-supported security operators (Compliance Operator, Security Profiles Operator, Gatekeeper where deployed). Controls outside this boundary (enterprise IAM/MFA, key lifecycle, application-layer security testing, DR/backup, WAF/IDS, SIEM correlation logic, long-term log retention, data encryption lifecycle) are provided and evidenced by external systems referenced in the External Control Register.
+
+### G.5 Boundary Validation Checklist (Quarterly)
+| Check | Method | Pass Criterion | Exception Handling |
+|-------|--------|---------------|-------------------|
+| All nodes on expected OSTree commit set | Compare reported node OSTree commit IDs against approved release manifest | 100% match (allow controlled canary subset) | Log deviation → investigate → reconcile MachineConfig |
+| MachineConfig drift | Review current rendered MachineConfig state vs version-controlled baseline | No unmanaged node file changes | Create remediation PR or exception entry |
+| SELinux enforcing everywhere | Sample representative nodes to confirm SELinux enforcement status | All = Enforcing | Investigate node; restore enforcing & document |
+| Unsupported manual changes (out-of-band node edits) | MachineConfig Operator rendered-state comparison plus (optional) compliance file rule and targeted node inspection | No unmanaged file drift; all nodes conform to rendered MachineConfig | Immediate cordon & investigate → revert or codify via MachineConfig; raise exception ticket (time‑bound); treat manual change as policy violation |
+| Operator baselines intact (Compliance/SPO) | Confirm operators healthy; review compliance suites & remediations status; verify active security profiles match approved hashes in repo; ensure no failed checks or unmanaged local-only profiles | All relevant operator components healthy; every profile matches approved baseline; zero failed compliance checks | If drift or failure detected: raise exception, restore profile from source or update baseline via approved review, document closure |
+
+### G.6 Handling Out-of-Scope Auditor Requests
+Provide a polite redirect pattern:
+| Request Type | Response Template |
+|--------------|-------------------|
+| “Show MFA enrollment statistics” | Outside RHACS/OpenShift scope; refer to IAM evidence bundle (IdP config + MFA policy + enrollment report). |
+| “Provide WAF blocked request sample” | WAF is external; see External Control Register (WAF domain) for policy export & log sample location. |
+| “Demonstrate database encryption keys” | Key management is external; provide KMS key policy & rotation logs referenced in External Control Register. |
+| “Show PHI access logs” | Application/DB audit responsibility; RHACS supplies infrastructure security events only (see Appendix C tailoring statement). |
+
+### G.7 Change Control & Versioning of Scope
+Version this Appendix (G) independently; any addition/removal of in-scope components requires:
+1. Update Appendix G table(s)
+2. Commit with signed tag referencing change ticket
+3. Regenerate Appendix E entries if new external dependencies introduced
+4. Notify audit preparation distribution list
+
+> Principle: Scope drift without explicit versioning erodes evidence credibility—treat scope like code.
+
+---
 ## 12. Extending & Maturing
 | Phase | Focus | Additions |
 |-------|-------|----------|
