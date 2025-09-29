@@ -397,17 +397,20 @@ Note: Each row maps to detailed sections below. Non-experts can ignore framework
 
 ---
 ## 11. Control Mapping Quick Reference
-| Theme | Representative Control IDs (See Appendices for granular) |
-|-------|----------------------------------------------------------|
-| 1 Image Provenance & Supply Chain | NIST CM‑2 / CM‑6 / RA‑5; NIST 800‑190 4.1.x; PCI Req 6; HIPAA 164.308(a)(1), 164.312(c)(1) |
-| 2 Baseline Config & Drift | NIST CM‑2 / CM‑3 / CM‑6; PCI Req 2; NIST 800‑190 hardening; HIPAA 164.308(a)(1)(ii)(D) |
-| 3 Least Privilege & RBAC | NIST AC‑2 / AC‑3 / AC‑6 / CM‑5; PCI Req 7; HIPAA 164.308(a)(4), 164.312(a)(1) |
-| 4 Network Segmentation | NIST SC‑7; PCI Req 1; HIPAA 164.312(e) |
-| 5 Resource Governance | NIST SC‑6 (availability); PCI 2.2.5 (linkage); HIPAA continuity (interpretive) |
-| 6 Vulnerability Lifecycle | NIST RA‑5; PCI Req 6; NIST 800‑190 4.1.4 / 4.1.6 / 4.1.14; HIPAA 164.308(a)(1) |
-| 7 Runtime Detection & Response | NIST SI‑4 / IR‑4(5) / IR‑5 / IR‑6(1); PCI Req 10; HIPAA 164.308(a)(6), 164.312(b) |
-| 8 Secrets Protection | NIST SI‑7; PCI Req 3 (selected); HIPAA 164.312(a)(1), (c)(1), (d) |
-| 9 Logging & Evidence | NIST IR‑6(1) / SI‑4 / AU‑6 / AU‑12; PCI Req 10; HIPAA 164.312(b), 164.308(a)(1)(ii)(D) |
+High-level crosswalk of each theme to the principal framework control families. This is an orientation aid only—see Appendices A–D for granular control-by-control coverage, notes, and evidence nuances.
+
+| Theme | NIST 800-53 (Primary Technical Controls) | NIST 800-190 (Key Refs) | PCI DSS (Primary Req) | HIPAA 164 (Representative Clauses) |
+|-------|-------------------------------------------|-------------------------|-----------------------|------------------------------------|
+| 1 Image Provenance & Supply Chain | CM-2, CM-6, RA-5 (also SI-7, SR-11 partial) | 4.1.1–4.1.4, 4.1.11–4.1.12 | 6 | 164.308(a)(1), 164.312(c)(1) |
+| 2 Baseline Config & Drift | CM-2, CM-6, CM-7, CM-3 | 4.1.2, 4.1.3, 4.1.8, 4.2.7 | 2 | 164.308(a)(1)(ii)(D) |
+| 3 Least Privilege & RBAC | AC-2, AC-3, AC-6, CM-5 | 4.2.1, 4.2.4 | 7 | 164.308(a)(4), 164.312(a)(1) |
+| 4 Network Segmentation | SC-7 (+ SC-7(3)/(4)), AC-3 (enforcement tie) | 4.2.2 | 1 | 164.312(e) |
+| 5 Resource Governance | SC-6 (availability), CM-7 (least functionality) | 4.2.5 | 2.2.5 | 164.308(a)(7) (contingency alignment) |
+| 6 Vulnerability Lifecycle | RA-5, SI-2 | 4.1.4, 4.1.6, 4.1.14 | 6 | 164.308(a)(1) |
+| 7 Runtime Detection & Response | SI-4, IR-4(5), IR-5, IR-6(1) | 4.5.1, 4.5.2 | 10 | 164.308(a)(6), 164.312(b) |
+| 8 Secrets Protection | SI-7, SI-7(1) (integrity aspects) | 4.1.7, 4.2.3 | 3 (selected) | 164.312(a)(1), 164.312(c)(1), 164.312(d) |
+| 9 Logging & Evidence | AU-6, AU-12, AU-9, IR-6(1), SI-4 (telemetry) | 4.2.6 | 10 | 164.312(b), 164.308(a)(1)(ii)(D) |
+
 Tri-Column Coverage Model (applies to all control mapping & evidence tables): Columns enumerate OCP (OpenShift/RHCOS primitives), RHACS (security overlay), External (out-of-scope systems/governance). Per column: C = fully enforced/evidenced within that layer; P = partial contribution (shared responsibility or evidentiary assist); blank = negligible/no substantive contribution; External column uses E when entirely outside OCP+RHACS scope. See Section 0 for model rationale.
 
 > Interpretation Nuance: If an intended "C" capability is temporarily not enforced (e.g., policy in warn, webhook fail-open), treat it operationally as downgraded (manage via exception register) until restored—do not silently leave as C in internal audit prep artifacts.
