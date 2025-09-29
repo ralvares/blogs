@@ -26,6 +26,7 @@ Unless a theme explicitly lists “Additional Evidence”, capture this baseline
 3. Sample (sanitized) prior violation + its remediation closure proof
 4. External SIEM log / ticket reference linking alert → action
 5. Change history (Git / ticket ID) for material control adjustments
+Theme-specific “Additional Evidence” sections are supplements, not replacements—always collect the baseline unless a theme explicitly states an exception.
 
 ### Enforcement Failure Modes & Resilience (Consolidated)
 Understanding how controls behave under partial failure prevents silent coverage gaps. The table below summarizes typical failure / degradation scenarios and recommended guardrails.
@@ -94,7 +95,7 @@ Review Themes 1–9 in sequence for operational rollout; use Section 11 (Control
 
 ---
 ## 1. Image Provenance & Supply Chain Integrity (Build & Trust)
-**Representative Control Families:** NIST CM‑2 / CM‑6 / RA‑5; NIST 800‑190 4.1.x; PCI DSS 3.2.1 & 4.0 Requirement 6; HIPAA 164.308(a)(1), 164.312(c)(1).
+**Representative Control Families:** NIST CM‑2 / CM‑6 / RA‑5; NIST 800‑190 4.1.x; PCI DSS 4.0 Requirement 6; HIPAA 164.308(a)(1), 164.312(c)(1).
 
 ### Intent
 Assure only approved, scanned, signed, minimal, immutable images from trusted sources reach deploy.
@@ -127,7 +128,6 @@ Tampered or vulnerable images deliver exploitable components early; signature ga
 - Signed SBOM artifact (hash + timestamp)
 - Example signature verification admission log (success + rejection)
  - Exception (if any) showing controlled temporary fallback from block→warn with expiry
- - (If applicable) Secure coding pipeline evidence (SAST/DAST report hash) for public-facing apps (PCI 6.3.2)
  - (If applicable) Secure coding pipeline evidence (SAST/DAST report hash) for public-facing apps (PCI Req 6 secure software development expectations)
 
 ---
@@ -195,14 +195,7 @@ Enforce explicit ingress/egress flows; deny-by-default to limit lateral movement
 - NetworkPolicy: Primary L3/L4 segmentation primitive inside the cluster
 - Namespaces: Provide administrative scoping only — no isolation unless combined with NetworkPolicy
 - Service Mesh (optional): Adds mTLS identity and L7 authorization policies (external to RHACS)
-- Multus: Enables secondary network interfaces; traffic on those interfaces bypasses primary cluster NetworkPolicy controls
-- User Defined Networks (UDN): Extends OVN-Kubernetes to support multiple logical networks:
-	- A UDN may serve as the alternate primary network for a namespace (only one primary) or as a secondary attachment
-	- Backends can be:
-		- localnet – VLAN-backed segment bridging into physical infrastructure
-		- Overlay (L2/L3 VRF) – logical networks isolated from other overlays
-		- Routed L3 fabric segment
-	- Security stance: treat each UDN as a separate security zone. Maintain an inventory of workloads per UDN, define ACL/firewall policies, and document all cross-UDN flows as explicit “inter-zone” rules.
+- Multus / UDN: Enable additional or alternate pod networks; traffic on those secondary or alternate networks is outside default NetworkPolicy scope (see Segmentation Clarification & Governance note below for unified handling and ownership requirements).
 
 ### Key Actions
 1. Apply a deny-all ingress + deny-all egress NetworkPolicy in every namespace.
@@ -247,15 +240,13 @@ Key Elements:
 9. Residual Risk Register: Document shared kernel exposure & trigger conditions for migrating a zone to its own cluster (e.g., inability to meet accelerated patch SLA, regulatory mandate).
 10. Exception Workflow: Temporary co-residency requires exception ID, risk rationale, expiry, and approval (tracked in Exception Register).
 
-Example RHACS Policy Concept (pseudocode):
-```
-IF namespace matches /(apps-confidential|apps-restricted)/ THEN
-	require label data-classification present AND
-	require node selector key classification == data-classification label AND
-	forbid privileged OR hostNetwork=true for data-classification in (restricted)
-VIOLATION if any condition fails
-```
-(Store actual JSON export in Git; reference commit hash in evidence.)
+> Example enforcement logic (illustrative pseudocode – adapt to actual policy engine):
+> IF namespace matches /(apps-confidential|apps-restricted)/ THEN
+>  require label data-classification present AND
+>  require node selector key classification == data-classification label AND
+>  forbid privileged OR hostNetwork=true for data-classification in (restricted)
+> VIOLATION if any condition fails
+> (Store actual JSON export in Git; reference commit hash in evidence.)
 
 Additional Evidence for Compute Zones:
 - Node label & taint inventory export (hash + timestamp)
@@ -394,7 +385,7 @@ Do **not** rely on this as primary control—treat it as a compensating “last 
 
 ---
 ## 9. Logging, Reporting & Continuous Evidence
-**Representative Controls:** PCI Req 10 (3.2.1 & 4.0 evolutions), NIST SI‑4 / IR‑5 / IR‑6(1) / AU‑6 / AU‑12; HIPAA 164.312(b), 164.308(a)(1)(ii)(D).
+**Representative Controls:** PCI Req 10 (4.0), NIST SI‑4 / IR‑5 / IR‑6(1) / AU‑6 / AU‑12; HIPAA 164.312(b), 164.308(a)(1)(ii)(D).
 
 ### Intent
 Maintain immutable, correlated, reviewable evidence of control operation & exceptions.
@@ -453,10 +444,12 @@ Coverage Legend: (C) Covered (core technical control in RHACS) / (P) Partial (ev
 > Nuance: “C” denotes the *core technical aspect* is enforceable/observable in RHACS assuming prerequisite configuration (e.g., admission webhook enabled, collector healthy). A temporary downgrade (policy in warn mode, webhook fail-open) should be treated as a *time-bound exception* and tracked. Reclassify to “P” if sustainable enforcement is not yet in place.
 
 ---
-## Appendix A – PCI DSS Detailed Mapping (Req 2, 6, 7, 10 + 4.0 Delta)
+## Appendix A – PCI DSS Detailed Mapping (Req 2, 6, 7, 10 + 4.0 Key Concepts)
 Each row includes a coverage tag.
 
-Note: PCI DSS 4.0 renumbered and reworded several v3.2.1 sub-requirements (notably within Requirements 6 and 10). To avoid accidental mis-citation, 4.0 secure software development / code review / WAF language is referenced at the Requirement level ("PCI Req 6") unless a QSA-validated paragraph ID is explicitly documented internally. Use a separate assessor-pack appendix for precise decimal mappings.
+Important: Decimal-level PCI DSS 4.0 sub-references are intentionally omitted in this end-user guide. Use QSA-reviewed internal Appendix G for paragraph-level mapping.
+
+Note: PCI DSS 4.0 refines and, in some areas, renumbers prior version sub-requirements (notably within Requirements 6 and 10). This guide intentionally cites PCI DSS 4.0 *at the requirement level* (e.g., "PCI Req 6", "PCI Req 10") to prevent mis-citation of paragraph decimals in customer-facing material. Paragraph / decimal-level references (e.g., 6.x, 10.x.x.x) are maintained only in an internal, QSA-reviewed Appendix G and are excluded here.
 
 ### A.1 Requirement 2 & 6
 | PCI Sub‑Req | Theme | Summary | Coverage | Notes |
@@ -467,7 +460,7 @@ Note: PCI DSS 4.0 renumbered and reworded several v3.2.1 sub-requirements (notab
 | 6.1 | 6 | Identify vulns | C | Continuous image scanning |
 | 6.2 | 6 | Timely patch | P | Enforceable, but patch action external |
 | 6.3 / 6.3.1 | 1 | Secure dev & remove test data | P | Build eval + secret detection |
-| Req 6 (4.0 secure software dev) | 1 / External | Secure software development & code review / WAF expectations (generalized) | P | See Theme 1 caveats (generalized): RHACS gates risky deploy configs; full secure coding (SAST/DAST, dependency & IaC scanning) via RHTAP/AppSec pipeline (export scan reports + hash) |
+| Req 6 (4.0 secure software dev) | 1 / External | Secure software development & code review / WAF expectations (generalized) | P | See Theme 1 caveats (generalized); supersedes legacy 3.2.1 decimals (6.3.x). Full secure coding (SAST/DAST, dependency & IaC scanning) via RHTAP/AppSec pipeline (export scan reports + hash) |
 | 6.4 / 6.4.1 / 6.4.2 | 2 / 3 / 6 | Change control, env & duty separation | P | Evidence of violations + RBAC; process external |
 | 6.5.x | 1 / 6 | Coding vulns | P | Library CVEs; need SAST/DAST |
 | 6.6 | 7 / 9 | Web app protection | P | Runtime anomaly ≠ WAF |
@@ -479,15 +472,15 @@ Note: PCI DSS 4.0 renumbered and reworded several v3.2.1 sub-requirements (notab
 | 7.2 / 7.2.1–7.2.3 | 3 / 4 | Access system & default deny | C/P | RBAC + NetworkPolicies; default deny proven via coverage |
 
 ### A.3 Requirement 10
-| Sub‑Req (3.2.1 / 4.0) | Theme | Focus | Coverage | Notes |
-|------------------------|-------|-------|----------|-------|
+| 4.0 Sub‑Req | Theme | Focus | Coverage | Notes |
+|-------------|-------|-------|----------|-------|
 | 10.1 / 10.2.x / 10.3.x | 7 / 9 | Event linkage, capture & detail | P | RHACS security events only |
 | 10.5.x | 9 | Protect log integrity | P | External SIEM WORM required |
 | 10.6 | 9 | Daily review | P | Dashboards aid; process external |
 | 10.7 | 9 | Retention | E | External retention controls |
-| 4.0 – logging failure detect | 9 | Pipeline failure alerting | C/P | Add health checks + alert policy |
+| 10.4.1.3 (logging failure detect) | 9 | Pipeline failure alerting | C/P | Add health checks + alert policy |
 
-### A.4 4.0 Delta Concepts
+### A.4 4.0 Key Concepts
 | Concept | Theme | Enhancement | Coverage | Notes |
 |---------|-------|------------|----------|-------|
 | Targeted Risk Analysis | 6 / 9 | Risk-based timing deviations | E | Store TRA artifacts externally |
@@ -518,8 +511,8 @@ Note: PCI DSS 4.0 renumbered and reworded several v3.2.1 sub-requirements (notab
 | 164.312(d) | 3 | P | Auth context (service accounts); MFA external |
 | 164.312(e) | 4 | P | Network segmentation evidence; encryption external |
 
-> HIPAA Platform Clarification: OpenShift OAuth idle timeout settings address automatic logoff expectations; cluster / etcd encryption and storage class encryption (where enabled) address encryption-at-rest expectations. Include platform configuration exports (sans secrets) as external evidence.
-> Evidence Export Note: Export (a) OAuth session timeout configuration (yaml/json) and (b) encryption-at-rest enablement manifests (etcd + storage class) as signed artifacts; store alongside quarterly HIPAA technical safeguard evidence bundle.
+> Platform Clarification: OpenShift OAuth idle timeout addresses auto logoff; cluster/etcd + storage class encryption cover encryption at rest. Export both configs (yaml/json) as signed artifacts for evidence.
+> Evidence Export Note: Export (a) OAuth session timeout configuration (yaml/json) and (b) encryption-at-rest enablement manifests (etcd + storage class) as signed artifacts; store with quarterly HIPAA safeguard evidence bundle.
 
 ---
 ## Appendix D – NIST SP 800‑190 Section 4.1.x
