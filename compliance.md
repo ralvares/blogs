@@ -128,6 +128,7 @@ Tampered or vulnerable images deliver exploitable components early; signature ga
 - Example signature verification admission log (success + rejection)
  - Exception (if any) showing controlled temporary fallback from block→warn with expiry
  - (If applicable) Secure coding pipeline evidence (SAST/DAST report hash) for public-facing apps (PCI 6.3.2)
+ - (If applicable) Secure coding pipeline evidence (SAST/DAST report hash) for public-facing apps (PCI Req 6 secure software development expectations)
 
 ---
 ## 2. Baseline Configuration & Drift Control
@@ -230,6 +231,46 @@ Document each extended control (owner + evidence) in the External Control Regist
 - NetworkPolicy coverage percentage over time (e.g., last 8 weeks)
 - Sample generated NetworkPolicy YAML + review ticket approval + before/after coverage diff
 - Example drift detection alert showing unexpected new connection
+
+### Workload Classification & Node Placement ("Compute Zones")
+When multiple data sensitivity or regulatory classifications (e.g., Public, Internal, Confidential, Restricted / PCI in-scope / PHI) must coexist on a single cluster, NetworkPolicies alone do not mitigate all residual risks (kernel escape, side-channel, noisy neighbor, forensic contamination). Introduce explicit compute zones that combine node-level segregation, scheduling constraints, and policy enforcement. Treat unapproved co-residency as a violation.
+
+Key Elements:
+1. Taxonomy: Publish ordered classification levels with examples + handling rules.
+2. Node Segmentation: Label & taint nodes per zone (`classification=restricted`, taint `classification=restricted:NoSchedule`).
+3. Scheduling Controls: Require pod label `data-classification=<level>` AND nodeSelector / affinity matching that label; higher classification pods tolerate only their zone taint.
+4. Admission / Policy Guardrails: RHACS deploy-time custom policy (or Gatekeeper/Kyverno – choose one authoritative) to enforce presence & consistency of classification labels, forbid privileged/hostNetwork in high zones.
+5. Namespace Strategy: Separate namespaces per classification (e.g., `apps-restricted`) plus deny-all ingress/egress; only explicit inter-zone NetworkPolicies allowed (justify each exception).
+6. Differential Enforcement: Stricter runtime actions (block vs alert) and shorter vuln SLAs for higher zones (e.g., Critical fix ≤48h for restricted, ≤7d baseline elsewhere).
+7. Secrets Handling: Enforce external vault references; block plain env secrets in restricted zone.
+8. Drift Detection: Daily job enumerates pods where `data-classification` label mismatches node label; zero tolerance—auto ticket.
+9. Residual Risk Register: Document shared kernel exposure & trigger conditions for migrating a zone to its own cluster (e.g., inability to meet accelerated patch SLA, regulatory mandate).
+10. Exception Workflow: Temporary co-residency requires exception ID, risk rationale, expiry, and approval (tracked in Exception Register).
+
+Example RHACS Policy Concept (pseudocode):
+```
+IF namespace matches /(apps-confidential|apps-restricted)/ THEN
+	require label data-classification present AND
+	require node selector key classification == data-classification label AND
+	forbid privileged OR hostNetwork=true for data-classification in (restricted)
+VIOLATION if any condition fails
+```
+(Store actual JSON export in Git; reference commit hash in evidence.)
+
+Additional Evidence for Compute Zones:
+- Node label & taint inventory export (hash + timestamp)
+- RHACS classification enforcement policy export
+- Daily drift report (pod↔node classification mismatch) with uninterrupted date chain
+- Inter-zone flow matrix (approved NetworkPolicy exceptions) + ticket links
+- Vulnerability SLA matrix per zone + sample accelerated remediation proof
+- Exception register entries (if any) governing temporary deviations
+
+Escalate to Separate Clusters When:
+- Regulatory / contractual requirement for isolation beyond logical segmentation
+- Inability to consistently meet hardened SLA / patch cadence for shared nodes
+- Frequent contention or noisy neighbor undermining zone guarantees
+
+Document the decision criteria so auditors see a rational progression plan from single-cluster multi-zone to multi-cluster architecture if/when triggers occur.
 
 ---
 ## 5. Resource Governance & Availability
@@ -415,6 +456,8 @@ Coverage Legend: (C) Covered (core technical control in RHACS) / (P) Partial (ev
 ## Appendix A – PCI DSS Detailed Mapping (Req 2, 6, 7, 10 + 4.0 Delta)
 Each row includes a coverage tag.
 
+Note: PCI DSS 4.0 renumbered and reworded several v3.2.1 sub-requirements (notably within Requirements 6 and 10). To avoid accidental mis-citation, 4.0 secure software development / code review / WAF language is referenced at the Requirement level ("PCI Req 6") unless a QSA-validated paragraph ID is explicitly documented internally. Use a separate assessor-pack appendix for precise decimal mappings.
+
 ### A.1 Requirement 2 & 6
 | PCI Sub‑Req | Theme | Summary | Coverage | Notes |
 |-------------|-------|---------|----------|-------|
@@ -424,7 +467,7 @@ Each row includes a coverage tag.
 | 6.1 | 6 | Identify vulns | C | Continuous image scanning |
 | 6.2 | 6 | Timely patch | P | Enforceable, but patch action external |
 | 6.3 / 6.3.1 | 1 | Secure dev & remove test data | P | Build eval + secret detection |
-| 6.3.2 (4.0) | 1 / External | Secure coding practices for public-facing apps | P | See Theme 1 caveats: RHACS gates risky deploy configs; full secure coding (SAST/DAST, dependency & IaC scanning) via RHTAP/AppSec pipeline (export scan reports + hash) |
+| Req 6 (4.0 secure software dev) | 1 / External | Secure software development & code review / WAF expectations (generalized) | P | See Theme 1 caveats (generalized): RHACS gates risky deploy configs; full secure coding (SAST/DAST, dependency & IaC scanning) via RHTAP/AppSec pipeline (export scan reports + hash) |
 | 6.4 / 6.4.1 / 6.4.2 | 2 / 3 / 6 | Change control, env & duty separation | P | Evidence of violations + RBAC; process external |
 | 6.5.x | 1 / 6 | Coding vulns | P | Library CVEs; need SAST/DAST |
 | 6.6 | 7 / 9 | Web app protection | P | Runtime anomaly ≠ WAF |
@@ -512,7 +555,7 @@ Use this table internally (expand per environment). Populate “Status” with: 
 | Data-at-Rest Encryption | Storage classes, database | Infra / DB | Encryption enablement evidence | Annual | YYYY-MM-DD | Green | Cross-check new storage class defaults |
 | Network Encryption (TLS / Mesh) | mTLS, ingress TLS | Platform / NetSec | Mesh policy export + cert inventory | Quarterly | YYYY-MM-DD | Green | Expiring cert alert threshold 30d |
 | WAF / API Gateway Protection | OWASP rules, DDoS | AppSec | WAF policy export + sampled logs | Monthly | YYYY-MM-DD | Green | Include anomaly score trend |
-| SAST / DAST / Code QA (PCI 6.3.2) | Static + dynamic testing incl. dependency & IaC scans | AppSec / RHTAP | Signed scan report bundle (hash chain) + pipeline run ID | Per Release | YYYY-MM-DD | Amber | Coverage gap in legacy service X; correlate run ID to blocked deploy evidence |
+| SAST / DAST / Code QA (PCI Req 6) | Static + dynamic testing incl. dependency & IaC scans | AppSec / RHTAP | Signed scan report bundle (hash chain) + pipeline run ID | Per Release | YYYY-MM-DD | Amber | Coverage gap in legacy service X; correlate run ID to blocked deploy evidence |
 | License Compliance / SBOM Legal | OSS license scans | Legal / AppSec | License scan diff + approvals | Quarterly | YYYY-MM-DD | Green | Automate accept/deny list sync |
 | Backup & DR | Snapshot & restore tests | Infra | DR test report + RPO/RTO metrics | Semi-Annual | YYYY-MM-DD | Amber | Next restore test scheduled |
 | Log Retention & Immutability | SIEM, Object store | SecOps | Retention config + WORM policy export | Annual | YYYY-MM-DD | Green | Confirm legal hold handling |
