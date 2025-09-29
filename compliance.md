@@ -6,6 +6,8 @@ Practical guidance for structuring and evidencing container/Kubernetes security 
 ## 0. How to Use & Scope
 This guide normalizes overlapping framework language into actionable security “themes”. For each theme you get: intent, risk, platform + RHACS capabilities, key actions, and incremental evidence. Use the quick reference + appendices to translate into specific control IDs.
 
+> Coverage Model Clarification: The scope combines (a) OpenShift / RHCOS platform primitives ("OCP" – SCC/Pod Security, RBAC, NetworkPolicy, MachineConfig/OSTree, ClusterImagePolicy & signature admission, Compliance & Security Profiles Operators, ingress TLS, optional mesh mTLS) and (b) Red Hat Advanced Cluster Security ("RHACS") overlay capabilities (image & component scanning, deploy misconfig & vuln gating, runtime anomaly detection, secret pattern detection, policy & compliance evidence exports). Tables now show three columns (OCP | RHACS | External). A blank cell means “no substantive contribution.” The External column lists items outside the combined in‑scope boundary that must be evidenced via Appendix E (External Control Register).
+
 ### Covered vs External Responsibilities
 | Category | RHACS Primary | RHACS Partial (Evidence Component) | External / Platform (Document Separately) |
 |----------|---------------|------------------------------------|-------------------------------------------|
@@ -413,59 +415,59 @@ Coverage Legend: (C) Covered (core technical control in RHACS) / (P) Partial (ev
 
 ---
 ## Appendix A – PCI DSS Detailed Mapping (Req 2, 6, 7, 10 + 4.0 Delta)
-Each row includes a coverage tag.
+Tables now use three coverage columns: OCP (OpenShift/RHCOS primitives), RHACS (overlay controls), External (outside scope requiring separate evidence).
 
 ### A.1 Requirement 2 & 6
-| PCI Sub‑Req | Theme | Summary | Coverage | Notes |
-|-------------|-------|---------|----------|-------|
-| 2.2 / 2.2.1–2.2.5 | 2 | Secure config, least functionality | C | Policies + SCC synergy |
-| 2.3 | 2 / 9 | Secure non‑console admin | P | Detection custom; rely on TLS & bastion |
-| 2.4 | 1 | Component inventory | P | Registry+scanner coverage; CMDB external |
-| 6.1 | 6 | Identify vulns | C | Continuous image scanning |
-| 6.2 | 6 | Timely patch | P | Enforceable, but patch action external |
-| 6.3 / 6.3.1 | 1 | Secure dev & remove test data | P | Build eval + secret detection |
-| 6.3.2 (4.0) | 1 / External | Secure coding practices for public-facing apps | P | See Theme 1 caveats: RHACS gates risky deploy configs; full secure coding (SAST/DAST, dependency & IaC scanning) via RHTAP/AppSec pipeline (export scan reports + hash) |
-| 6.4 / 6.4.1 / 6.4.2 | 2 / 3 / 6 | Change control, env & duty separation | P | Evidence of violations + RBAC; process external |
-| 6.5.x | 1 / 6 | Coding vulns | P | Library CVEs; need SAST/DAST |
-| 6.6 | 7 / 9 | Web app protection | P | Runtime anomaly ≠ WAF |
+| PCI Sub‑Req | Theme | Summary | OCP | RHACS | External | Notes |
+|-------------|-------|---------|-----|-------|----------|-------|
+| 2.2 / 2.2.1–2.2.5 | 2 | Secure config, least functionality | C | C |  | SCC/Pod Security + RHACS misconfig policies jointly enforce least privilege (capabilities, non-root, restricted mounts). |
+| 2.3 | 2 / 9 | Secure non‑console admin | P | P | E | TLS/bastion & RBAC constrain channels (OCP=P); RHACS can surface insecure endpoints (P); hardened remote admin (MFA, bastion ops) external. |
+| 2.4 | 1 | Component inventory | P | P | E | Image/registry visibility (RHACS=P) + cluster image references (OCP=P); authoritative CMDB/SBOM inventory external. |
+| 6.1 | 6 | Identify vulns |  | C |  | RHACS continuous image & component scanning (C); OCP relies on RHACS feed. |
+| 6.2 | 6 | Timely patch |  | P | E | RHACS policy gates (P); patch orchestration & rebuild external. |
+| 6.3 / 6.3.1 | 1 | Secure dev & remove test data | P | P | E | Admission constraints (e.g., disallow :latest) (OCP=P) + RHACS build/deploy policy (P); secure SDLC tasks external. |
+| 6.3.2 (4.0) | 1 / External | Secure coding practices (public-facing apps) |  | P | E | RHACS blocks risky deploy configs (P); SAST/DAST, dependency & IaC scans external (RHTAP/AppSec). |
+| 6.4 / 6.4.1 / 6.4.2 | 2 / 3 / 6 | Change control, env & duty separation | P | P | E | RBAC separation + namespaces (OCP=P); RHACS violation evidence (P); CAB/workflow external. |
+| 6.5.x | 1 / 6 | Coding vulns |  | P | E | RHACS detects vulnerable libraries (P); code-level remediation & SAST external. |
+| 6.6 | 7 / 9 | Web app protection |  | P | E | RHACS runtime anomaly policies (P); WAF / L7 inspection external. |
 
 ### A.2 Requirement 7
-| Sub‑Req | Theme | Focus | Coverage | Notes |
-|---------|-------|-------|----------|-------|
-| 7.1–7.1.4 | 3 | Need-to-know, role definition, approvals | P | RBAC evidence; approval workflow external |
-| 7.2 / 7.2.1–7.2.3 | 3 / 4 | Access system & default deny | C/P | RBAC + NetworkPolicies; default deny proven via coverage |
+| Sub‑Req | Theme | Focus | OCP | RHACS | External | Notes |
+|---------|-------|-------|-----|-------|----------|-------|
+| 7.1–7.1.4 | 3 | Need-to-know, role definition, approvals | C | P | E | OCP RBAC primitives enforce (C); RHACS surfaces excessive privilege (P); approval workflow/governance external. |
+| 7.2 / 7.2.1–7.2.3 | 3 / 4 | Access system & default deny | C | P |  | OCP RBAC & NetworkPolicies provide enforcement (C); RHACS coverage & drift analytics (P). |
 
 ### A.3 Requirement 10
-| Sub‑Req (3.2.1 / 4.0) | Theme | Focus | Coverage | Notes |
-|------------------------|-------|-------|----------|-------|
-| 10.1 / 10.2.x / 10.3.x | 7 / 9 | Event linkage, capture & detail | P | RHACS security events only |
-| 10.5.x | 9 | Protect log integrity | P | External SIEM WORM required |
-| 10.6 | 9 | Daily review | P | Dashboards aid; process external |
-| 10.7 | 9 | Retention | E | External retention controls |
-| 4.0 – logging failure detect | 9 | Pipeline failure alerting | C/P | Add health checks + alert policy |
+| Sub‑Req (3.2.1 / 4.0) | Theme | Focus | OCP | RHACS | External | Notes |
+|------------------------|-------|-------|-----|-------|----------|-------|
+| 10.1 / 10.2.x / 10.3.x | 7 / 9 | Event linkage, capture & detail | P | P | E | OCP audit/events (P) + RHACS security events (P); full enterprise correlation & non-security logs external. |
+| 10.5.x | 9 | Protect log integrity |  | P | E | RHACS hashing (P); immutable/WORM storage external. |
+| 10.6 | 9 | Daily review |  | P | E | RHACS dashboards/exports (P); formal review process external. |
+| 10.7 | 9 | Retention |  |  | E | Long-term retention & legal hold external. |
+| 4.0 – logging failure detect | 9 | Pipeline failure alerting | P | P |  | OCP forwarder / pipeline health (P) + RHACS notifier/error metrics (P) combine for detection. |
 
 ### A.4 4.0 Delta Concepts
-| Concept | Theme | Enhancement | Coverage | Notes |
-|---------|-------|------------|----------|-------|
-| Targeted Risk Analysis | 6 / 9 | Risk-based timing deviations | E | Store TRA artifacts externally |
-| Customized Approach | Any | Alternative control design | E | Documentation + validation external |
-| Software Component Inventory | 1 / 6 | Formal inventory integrity | P | Partial via image+component metadata |
+| Concept | Theme | Enhancement | OCP | RHACS | External | Notes |
+|---------|-------|------------|-----|-------|----------|-------|
+| Targeted Risk Analysis | 6 / 9 | Risk-based timing deviations |  |  | E | Governance/risk acceptance artifact external. |
+| Customized Approach | Any | Alternative control design |  |  | E | Alternative control design & validation external. |
+| Software Component Inventory | 1 / 6 | Formal inventory integrity | P | P | E | OCP image refs + RHACS component data (P/P); authoritative SBOM inventory mgmt external. |
 
 ### A.2 Additional PCI Requirements (Context & Gap Clarification)
-This clarifies frequently asked PCI areas beyond Req 2, 6, 7, 10 where RHACS is only partial or out-of-scope.
+This clarifies frequently asked PCI areas beyond Req 2, 6, 7, 10 where platform + RHACS are partial or out-of-scope.
 
-| PCI Requirement | Relevance to Container/RHACS | Theme(s) | Coverage | Notes / Evidence Pointer |
-|-----------------|------------------------------|----------|----------|--------------------------|
-| Req 1 (Firewalls & Segmentation) | Internal east/west segmentation via NetworkPolicy | 4 | C/P | RHACS shows coverage & flows; perimeter & CDE boundary firewalls external. Provide NetworkPolicy manifests + external firewall diagram. |
-| Req 3 (Protect Stored CHD) | Data encryption / key mgmt, tokenization | External | E | KMS, tokenization platform evidence. |
-| Req 4 (Transmission Encryption) | TLS/mTLS for CHD in transit | 4 | E | Service mesh / ingress TLS configs. |
-| Req 5 (Anti‑Malware) | Containers rely on vuln mgmt + allowlist | 6 / 7 | P | Suspicious process detection; traditional AV external. Compensating control rationale needed. |
-| Req 8 (Authentication) | User authN, MFA | 3 / External | E | IdP/OAuth export + MFA policy. |
-| Req 9 (Physical) | Data center controls | External | E | Provider SOC2/ISO. |
-| Req 11 (Testing) | Segmentation tests, pen tests | 4 / 6 / External | P/E | RHACS continuous scanning; quarterly/annual tests external. |
-| Req 12 (Policies) | Governance program | External | E | Security policies & risk assessments. |
+| PCI Requirement | Relevance to Container/RHACS | Theme(s) | OCP | RHACS | External | Notes / Evidence Pointer |
+|-----------------|------------------------------|----------|-----|-------|----------|--------------------------|
+| Req 1 (Firewalls & Segmentation) | Internal east/west segmentation via NetworkPolicy | 4 | C | P | E | OCP NetworkPolicies enforce (C); RHACS coverage & flow viz (P); perimeter firewalls & CDE zoning external. |
+| Req 3 (Protect Stored CHD) | Data encryption / key mgmt, tokenization | External |  |  | E | KMS / tokenization external; cluster provides workload isolation only. |
+| Req 4 (Transmission Encryption) | TLS/mTLS for CHD in transit | 4 | C | P | E | OCP ingress/route TLS + optional mesh mTLS (C); RHACS reports gaps/custom checks (P); external cert lifecycle governance as needed. |
+| Req 5 (Anti‑Malware) | Containers rely on vuln mgmt + allowlist | 6 / 7 | P | P | E | OCP provides isolation primitives (P minimal); RHACS suspicious process & vuln gating (P); traditional AV or sandbox external. |
+| Req 8 (Authentication) | User authN, MFA | 3 / External | P |  | E | OCP OAuth integration (P); enterprise IdP + MFA external. |
+| Req 9 (Physical) | Data center controls | External |  |  | E | Physical security out-of-scope. |
+| Req 11 (Testing) | Segmentation tests, pen tests | 4 / 6 / External | P | P | E | OCP baseline segmentation config (P); RHACS continuous scanning (P); formal pen / segmentation tests external. |
+| Req 12 (Policies) | Governance program | External |  |  | E | Policy documents & governance external (platform/RHACS supply evidence only). |
 
-Coverage Legend: C = Core; P = Partial; E = External.
+Coverage Legend (Appendix A): C = fully enforced/evidenced within that layer; P = partial contribution (shared responsibility); blank = no substantive contribution; External column (E) = outside combined OCP+RHACS scope.
 
 ### A.3 PCI 4.0 Customized Approach / Targeted Risk Analysis Handling
 Maintain a Targeted Risk Analysis (TRA) record for any deviation (e.g., different vuln remediation timelines). Include objective, alternative technique, residual risk, approver, revalidation date.
@@ -529,7 +531,7 @@ Focused on Moderate baseline (Rev 5) control families most often cited in platfo
 | SA‑15 | Development Process / Standards | External | E | Secure SDLC policy/procedure outside scope; RHACS provides gate evidence |
 | SC‑6 | Resource Availability Protection | 5 | C/P | Detect missing limits; quota enforcement by platform |
 | SC‑7 / SC‑7(3)/(4) | Boundary Protection / Segmentation / Deny by Default | 4 | C/P | NetworkPolicy coverage analytics; L7/WAF/mTLS external |
-| SC‑8 / SC‑8(1) | Transmission Confidentiality & Integrity / Cryptographic Protection | 4 / External | E | TLS/mTLS configuration external (service mesh/ingress) |
+| SC‑8 / SC‑8(1) | Transmission Confidentiality & Integrity / Cryptographic Protection | 4 | P | Platform provides north‑south TLS (Ingress/Routes), optional node‑to‑node tunnel encryption (IPsec where enabled), and service‑to‑service mTLS via Service Mesh; RHACS does not configure or attest crypto strength—evidence comes from platform & mesh configs |
 | SC‑13 | Cryptographic Protection (At Rest) | External | E | etcd/storage encryption outside RHACS |
 | SC‑28 | Protection of Information at Rest | External | E | Storage class / volume encryption external |
 | SI‑2 | Flaw Remediation | 6 | C/P | Detects vulnerable images; remediation action in pipelines |
@@ -541,6 +543,8 @@ Focused on Moderate baseline (Rev 5) control families most often cited in platfo
 | SR‑11 | Component Authenticity | 1 | P | Signature presence policy; attestation chain & key custody external |
 
 Legend Recap: C = Core technical enforcement/evidence in RHACS (assuming prerequisite config). P = Partial (produces some evidence or detects violations but relies on external systems/processes). E = External (implement & evidence outside RHACS; may correlate with RHACS artifacts).
+
+*SC‑8 Clarification:* Marked Partial because OpenShift natively terminates and serves TLS for Routes/Ingress, can enable encrypted node overlay (IPsec depending on network configuration/version), and (optionally) Service Mesh supplies mTLS for east‑west traffic. RHACS itself does not generate, rotate, or validate certificates or cipher policies—capture evidence via: Ingress Controller TLS config/certificate inventory, mesh PeerAuthentication / DestinationRule (or equivalent) showing STRICT mTLS, and (if applicable) cluster network encryption status documentation. If none of these platform features are enabled yet, downgrade SC‑8 to External (E) until cryptographic controls are operational.
 
 > Implementation Tip: When building an SSP, cite this table and then link each (P) / (E) control to either (a) platform configuration export (e.g., NetworkPolicy manifests, SCC profiles, mesh mTLS policy) or (b) governance artifacts (CAB approvals, IR plan version). For (C) items, embed RHACS policy JSON export hash + sample violation or compliance report line item.
 
