@@ -405,13 +405,18 @@ High-level crosswalk of each theme to the principal framework control families. 
 | 2 Baseline Config & Drift | CM-2, CM-6, CM-7, CM-3 | 4.1.2, 4.1.3, 4.1.8, 4.2.7 | 2 | 164.308(a)(1)(ii)(D) |
 | 3 Least Privilege & RBAC | AC-2, AC-3, AC-6, CM-5 | 4.2.1, 4.2.4 | 7 | 164.308(a)(4), 164.312(a)(1) |
 | 4 Network Segmentation | SC-7 (+ SC-7(3)/(4)), AC-3 (enforcement tie) | 4.2.2 | 1 | 164.312(e) |
-| 5 Resource Governance | SC-6 (availability), CM-7 (least functionality) | 4.2.5 | 2.2.5 | 164.308(a)(7) (contingency alignment) |
+| 5 Resource Governance | SC-6 (availability), CM-7 (least functionality); CP-10 (External) | 4.2.5 | 2.2.5 | 164.308(a)(7) (contingency alignment) |
 | 6 Vulnerability Lifecycle | RA-5, SI-2 | 4.1.4, 4.1.6, 4.1.14 | 6 | 164.308(a)(1) |
-| 7 Runtime Detection & Response | SI-4, IR-4(5), IR-5, IR-6(1) | 4.5.1, 4.5.2 | 10 | 164.308(a)(6), 164.312(b) |
+| 7 Runtime Detection & Response | SI-4, IR-4(5), IR-5, IR-6(1), AU-12 (runtime alert generation) | 4.5.1, 4.5.2 | 10 | 164.308(a)(6), 164.312(b) |
 | 8 Secrets Protection | SI-7, SI-7(1) (integrity aspects) | 4.1.7, 4.2.3 | 3 (selected) | 164.312(a)(1), 164.312(c)(1), 164.312(d) |
-| 9 Logging & Evidence | AU-6, AU-12, AU-9, IR-6(1), SI-4 (telemetry) | 4.2.6 | 10 | 164.312(b), 164.308(a)(1)(ii)(D) |
+| 9 Logging & Evidence | AU-6, AU-12, AU-9 (partial – external WORM), IR-6(1), SI-4 (telemetry) | 4.2.6 | 10 | 164.312(b), 164.308(a)(1)(ii)(D) |
 
 Tri-Column Coverage Model (applies to all control mapping & evidence tables): Columns enumerate OCP (OpenShift/RHCOS primitives), RHACS (security overlay), External (out-of-scope systems/governance). Per column: C = fully enforced/evidenced within that layer; P = partial contribution (shared responsibility or evidentiary assist); blank = negligible/no substantive contribution; External column uses E when entirely outside OCP+RHACS scope. See Section 0 for model rationale.
+
+Notes:
+- CP-10 (System Recovery) explicitly categorized External: DR plan execution & recovery testing lie outside platform/RHACS evidentiary scope.
+- AU-9 marked partial: RHACS hashing = tamper-evidence; immutable retention (object lock/WORM) external.
+- AU-12 added to Runtime Detection acknowledging runtime alerts feed the generated audit/security event corpus.
 
 > Interpretation Nuance: If an intended "C" capability is temporarily not enforced (e.g., policy in warn, webhook fail-open), treat it operationally as downgraded (manage via exception register) until restored—do not silently leave as C in internal audit prep artifacts.
 
@@ -712,7 +717,7 @@ Add this register to compliance review packs; each RED item should have a remedi
 | Secrets Exposure | Platform secret objects, external secret operator integration | Pattern-based env/config secret detection | Vault storage, rotation, short-lived creds | Secret violation trend, vault rotation report, exception register |
 | Runtime Threat Detection | (Baseline isolation reducing noise) | Process/network anomaly policies, notifier evidence | Full IR runbooks, forensics, SIEM correlation rules | Runtime alert sample + ticket, IR runbook version, SIEM correlated event |
 | Logging & Integrity | Audit log emission & forwarding config | Alert/log export events, compliance scheduling, hash chain | WORM storage, retention, central correlation | Hash chain index, object lock config, SIEM ingestion dashboards |
-| License Compliance | (N/A) | (Indirect) package inventory via scans | License analysis, legal approval workflow | License scan diff, approval tickets, component report snapshot |
+| License Compliance (800-190 4.1.14 External) | (N/A) | (Indirect) package inventory via scans | License analysis, legal approval workflow | License scan diff, approval tickets, component report snapshot |
 | Signature / Attestation Chain | Signature verification enforcement (admission) | Policy check for presence of signatures/labels | Key custody, Rekor transparency validation | Key management SOP, cosign verify log, policy pass report |
 | Policy Exceptions | (N/A) | Violation visibility, enforcement phase tracking | Governance workflow (approvals, expiry) | Exception register, policy diff, closure ticket |
 | Admission Reliability | Admission ordering & failurePolicy on platform webhooks | Webhook evaluation results & error metrics | HA config, cert rotation, DNS/network reliability | Webhook SLO dashboard, error metrics, blocked vs allowed stats |
