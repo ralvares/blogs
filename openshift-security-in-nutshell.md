@@ -62,7 +62,7 @@ Red Hat maintains critical components (RHCOS, CRI-O, kubelet) through a rigorous
 Each release has defined support phases: Full Support (bug fixes and security patches), Maintenance (critical security fixes), and EUS (extended updates for stability and security in long-term environments). This predictability allows customers to plan migrations and avoid unsupported versions that expose them to unpatched vulnerabilities.
 
 ### Transparency and Compliance Artifacts
-- **SBOMs and VEX**: Red Hat provides Software Bills of Materials (SBOMs) in CycloneDX format and Vulnerability Exploitability eXchange (VEX) documents, enabling automated vulnerability scanning and compliance reporting (e.g., for NIST, CISA requirements).
+- **SBOMs and VEX**: Red Hat provides Software Bills of Materials (SBOMs) and Vulnerability Exploitability eXchange (VEX) documents, enabling automated vulnerability scanning and compliance reporting (e.g., for NIST, CISA requirements).
 - **Air-Gapped Updates**: Signed releases support disconnected environments using OpenShift's supported image mirroring workflows (e.g., oc mirror, image content source policies) for secure patch delivery.
 
 This lifecycle management minimizes configuration drift and ensures platforms remain hardened against evolving threats.
