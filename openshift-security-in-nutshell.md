@@ -178,60 +178,19 @@ Beginner summary:
 - Reinforces layered defense: multiple safeguards for each tactic.
 Mapping common container/Kubernetes threat tactics to native controls for defensible conversations. (Technique IDs from MITRE ATT&CK where applicable.)
 
-### Initial Access
-Techniques Mitigated/Detected: T1552.001, T1528, T1555, T1190, T1203
-Scenario: Leaked token or exploit of outdated unauthenticated service exposed via a Route.
-Mitigations: Short‑lived OAuth tokens; etcd encryption; signature/provenance enforcement; registry/image policy; SCC + admission gating; audit anomaly detection.
-
-### Credential Access
-Techniques Mitigated/Detected: T1555, T1528
-Scenario: Compromised pod lists mounted secrets or env vars to extract credentials.
-Mitigations: etcd encryption; least‑privilege RBAC; SCC restricts mounts; secret exposure policies; audit logging.
-
-### Privilege Escalation
-Techniques Mitigated/Detected: T1068, T1078.004, T1098, T1087
-Scenario: Pipeline deploys pod requesting privileged SCC or excessive RBAC granted.
-Mitigations: SCC non‑privileged defaults; privileged policy detection; RBAC change auditing; escalation alerts.
-
-### Persistence
-Techniques Mitigated/Detected: T1602.002, T1053.005
-Scenario: Deployment or CronJob modified so a backdoored image is continuously pulled.
-Mitigations: Drift detection; GitOps reconciliation/rollback; registry & spec policy; audit history.
-
-### Execution
-Techniques Mitigated/Detected: T1059, T1609
-Scenario: Interactive exec session used to pull tooling or attempt escape.
-Mitigations: Exec alerting; SCC non‑root + namespace isolation; audit traceability.
-
-### Defense Evasion
-Techniques Mitigated/Detected: T1562, T1070.004
-Scenario: Attempt to disable or clear logging/audit records.
-Mitigations: Central forwarding; restricted mutation; immutable filesystem patterns.
-
-### Discovery
-Techniques Mitigated/Detected: T1083, T1033
-Scenario: API-driven enumeration of nodes, namespaces, or accounts.
-Mitigations: Least‑privilege RBAC; enumeration pattern alerting; namespace scoping.
-
-### Lateral Movement
-Techniques Mitigated/Detected: T1021.004, T1571, T1046, T1040
-Scenario: Compromised pod scans ranges, probes ports, or brute forces credentials.
-Mitigations: NetworkPolicy segmentation; egress anomaly detection; SCC hostNetwork restrictions; reduced capabilities.
-
-### Collection
-Techniques Mitigated/Detected: T1083, T1033
-Scenario: Secrets or ConfigMaps harvested from mounted volumes.
-Mitigations: Read‑only secret mounts; minimal env var use; SCC volume restrictions; RBAC scoping; exposure policies.
-
-### Command & Control (C2)
-Techniques Mitigated/Detected: T1571
-Scenario: Encrypted outbound channel to external infrastructure.
-Mitigations: Egress controls; anomalous connection detection; capability restrictions.
-
-### Impact
-Techniques Mitigated/Detected: T1490, T1489, T1491, T1496, T1485
-Scenario: Resource exhaustion, deleted backups, or UI defacement.
-Mitigations: Revision rollback; backups; quotas/limits; SCC privilege constraints; monitoring & alerting; deployment policy enforcement.
+| Tactic | Techniques Mitigated/Detected | Scenario | Mitigations |
+|--------|-------------------------------|----------|-------------|
+| Initial Access | T1552.001, T1528, T1555, T1190, T1203 | Leaked token or exploit of outdated unauthenticated service exposed via a Route. | Short‑lived OAuth tokens; etcd encryption; signature/provenance enforcement; registry/image policy; SCC + admission gating; audit anomaly detection. |
+| Credential Access | T1555, T1528 | Compromised pod lists mounted secrets or env vars to extract credentials. | etcd encryption; least‑privilege RBAC; SCC restricts mounts; secret exposure policies; audit logging. |
+| Privilege Escalation | T1068, T1078.004, T1098, T1087 | Pipeline deploys pod requesting privileged SCC or excessive RBAC granted. | SCC non‑privileged defaults; privileged policy detection; RBAC change auditing; escalation alerts. |
+| Persistence | T1602.002, T1053.005 | Deployment or CronJob modified so a backdoored image is continuously pulled. | Drift detection; GitOps reconciliation/rollback; registry & spec policy; audit history. |
+| Execution | T1059, T1609 | Interactive exec session used to pull tooling or attempt escape. | Exec alerting; SCC non‑root + namespace isolation; audit traceability. |
+| Defense Evasion | T1562, T1070.004 | Attempt to disable or clear logging/audit records. | Central forwarding; restricted mutation; immutable filesystem patterns. |
+| Discovery | T1083, T1033 | API-driven enumeration of nodes, namespaces, or accounts. | Least‑privilege RBAC; enumeration pattern alerting; namespace scoping. |
+| Lateral Movement | T1021.004, T1571, T1046, T1040 | Compromised pod scans ranges, probes ports, or brute forces credentials. | NetworkPolicy segmentation; egress anomaly detection; SCC hostNetwork restrictions; reduced capabilities. |
+| Collection | T1083, T1033 | Secrets or ConfigMaps harvested from mounted volumes. | Read‑only secret mounts; minimal env var use; SCC volume restrictions; RBAC scoping; exposure policies. |
+| Command & Control (C2) | T1571 | Encrypted outbound channel to external infrastructure. | Egress controls; anomalous connection detection; capability restrictions. |
+| Impact | T1490, T1489, T1491, T1496, T1485 | Resource exhaustion, deleted backups, or UI defacement. | Revision rollback; backups; quotas/limits; SCC privilege constraints; monitoring & alerting; deployment policy enforcement. |
 
 *Contributes to mitigation/detection; layered defenses required.
 
