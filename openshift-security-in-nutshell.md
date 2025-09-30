@@ -138,9 +138,9 @@ Once deployed, OpenShift maintains runtime security through isolation and observ
 - **Multus and Multi-NetworkPolicies**: Support legacy VLAN connectivity and advanced traffic control, integrating with SDN for zero-trust networking.
 
 ### Audit and Monitoring
-- **Integrated Monitoring**: Built-in platform monitoring and alerting (OpenShift Monitoring stack: Prometheus, Alertmanager, Grafana) provide metrics, health insights, and anomaly detection without separate assembly.
-- **Network Observability**: Flow logs, dropped packets, and traffic analysis via optional operators, feeding into threat detection pipelines.
-- **Compliance Dashboards**: Built-in views for CIS benchmarks and NIST controls.
+- **Integrated Monitoring**: Built-in platform monitoring and alerting provide metrics, health insights, and basic anomaly detection without additional setup, enabling proactive issue identification.
+- **Network Observability**: Flow logs, dropped packets, and traffic analysis via optional operators.
+- **Compliance Operator**: Automated compliance scanning for CIS Benchmarks, PCI-DSS, STIG, HIPAA, and other regulatory frameworks, with exportable evidence for audits.
 
 This visibility enables proactive threat hunting and incident response.
 
@@ -150,29 +150,23 @@ High-level intent: run workloads of different data sensitivity on one cluster wi
 Why it exists (problem framing):
 - Some risks (kernel escape, side‑channel timing, noisy neighbor contention, forensic contamination) are outside the reach of NetworkPolicies.
 - Teams often jump straight to extra clusters (cost, complexity) because they lack a lightweight middle step.
-- Auditors want evidence that sensitive workloads are deliberately placed, not “best effort”.
+- Auditors want evidence that sensitive workloads are deliberately placed, not "best effort".
 
 Core principles (keep it small):
 1. Clear ladder of sensitivity (e.g., Public → Internal → Confidential → Restricted). Fewer levels = fewer mistakes.
 2. Each level maps to its own worker node pool. Higher levels never share nodes with lower ones.
 3. A single required workload label (e.g., data-classification) must match the node pool label. If it doesn’t, deployment is rejected.
 4. Stricter level ⇒ tighter guardrails (privilege, networking, secrets patterns) and faster patch/vulnerability response.
-5. Continuous lightweight checks: “Does any running pod’s declared classification differ from the node it landed on?” Zero tolerance for drift.
+5. Continuous lightweight checks: "Does any running pod’s declared classification differ from the node it landed on?" Zero tolerance for drift.
 6. Document what is still shared (kernel, control plane) and when you would promote a level to its own cluster.
 
 Simple operating model:
-- Publish the taxonomy + handling rules (encryption, SLA, secrets usage) in version control.
-- Label/segment nodes once per level; avoid bespoke labels per team.
-- Enforce label consistency with one policy mechanism (pick RHACS OR Gatekeeper/Kyverno OR native admission—never all three for the same rule).
-- Track a small evidence set: node pool inventory, drift check results (even “none”), vulnerability remediation timing for the highest level, and any approved temporary exceptions with expiry.
-- Review quarterly: Did patch SLAs hold? Any repeated exceptions? Any trigger to split a level to a dedicated cluster?
-
-Differential treatment examples (illustrative, not prescriptive):
-- Patch/Vuln SLA: Restricted fixed Critical issues fast (e.g., 48h); lower tiers get progressively looser windows.
-- Runtime response: Highest tier blocks risky behavior; middle tiers may just alert.
-- Secrets: Highest tier discourages raw app-managed secrets; favor external provider integration.
-
-Escalate a zone to its own cluster only when: regulatory mandate, repeated inability to meet accelerated SLAs due to shared infrastructure, or recurring noisy neighbor incidents that affect SLOs. Make those triggers explicit so the move is evidence‑driven, not fear‑driven.
+- Publish the taxonomy + handling rules in version control.
+- Label and taint nodes per zone (e.g., taint nodes with classification level to restrict scheduling).
+- Use node selectors and tolerations on pods to ensure workloads land on matching zones.
+- Enforce label consistency with one policy mechanism.
+- Track evidence: node pool inventory, drift checks, exceptions.
+- Review periodically to decide if a zone needs its own cluster.
 
 Outcome in one sentence: Compute Zones give you a pragmatic, auditable middle ground—proving deliberate segregation of sensitive workloads—before incurring the overhead of multiplying clusters.
 
