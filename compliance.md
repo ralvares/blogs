@@ -233,6 +233,44 @@ Document each extended control (owner + evidence) in the External Control Regist
 - Sample generated NetworkPolicy YAML + review ticket approval + before/after coverage diff
 - Example drift detection alert showing unexpected new connection
 
+### Workload Classification & Node Placement ("Compute Zones")
+When multiple data sensitivity or regulatory classifications (e.g., Public, Internal, Confidential, Restricted / PCI in-scope / PHI) must coexist on a single cluster, NetworkPolicies alone do not mitigate all residual risks (kernel escape, side-channel, noisy neighbor, forensic contamination). Introduce explicit compute zones that combine node-level segregation, scheduling constraints, and policy enforcement. Treat unapproved co-residency as a violation.
+
+Key Elements:
+1. Taxonomy: Publish ordered classification levels with examples + handling rules.
+2. Node Segmentation: Label & taint nodes per zone (`classification=restricted`, taint `classification=restricted:NoSchedule`).
+3. Scheduling Controls: Require pod label `data-classification=<level>` AND nodeSelector / affinity matching that label; higher classification pods tolerate only their zone taint.
+4. Admission / Policy Guardrails: RHACS deploy-time custom policy (or Gatekeeper/Kyverno – choose one authoritative) to enforce presence & consistency of classification labels, forbid privileged/hostNetwork in high zones.
+5. Namespace Strategy: Separate namespaces per classification (e.g., `apps-restricted`) plus deny-all ingress/egress; only explicit inter-zone NetworkPolicies allowed (justify each exception).
+6. Differential Enforcement: Stricter runtime actions (block vs alert) and shorter vuln SLAs for higher zones (e.g., Critical fix ≤48h for restricted, ≤7d baseline elsewhere).
+7. Secrets Handling: Enforce external vault references; block plain env secrets in restricted zone.
+8. Drift Detection: Daily job enumerates pods where `data-classification` label mismatches node label; zero tolerance—auto ticket.
+9. Residual Risk Register: Document shared kernel exposure & trigger conditions for migrating a zone to its own cluster (e.g., inability to meet accelerated patch SLA, regulatory mandate).
+10. Exception Workflow: Temporary co-residency requires exception ID, risk rationale, expiry, and approval (tracked in Exception Register).
+
+> Example enforcement logic (illustrative pseudocode – adapt to actual policy engine):
+> IF namespace matches /(apps-confidential|apps-restricted)/ THEN
+>  require label data-classification present AND
+>  require node selector key classification == data-classification label AND
+>  forbid privileged OR hostNetwork=true for data-classification in (restricted)
+> VIOLATION if any condition fails
+> (Store actual JSON export in Git; reference commit hash in evidence.)
+
+Additional Evidence for Compute Zones:
+- Node label & taint inventory export (hash + timestamp)
+- RHACS classification enforcement policy export
+- Daily drift report (pod↔node classification mismatch) with uninterrupted date chain
+- Inter-zone flow matrix (approved NetworkPolicy exceptions) + ticket links
+- Vulnerability SLA matrix per zone + sample accelerated remediation proof
+- Exception register entries (if any) governing temporary deviations
+
+Escalate to Separate Clusters When:
+- Regulatory / contractual requirement for isolation beyond logical segmentation
+- Inability to consistently meet hardened SLA / patch cadence for shared nodes
+- Frequent contention or noisy neighbor undermining zone guarantees
+
+Document the decision criteria so auditors see a rational progression plan from single-cluster multi-zone to multi-cluster architecture if/when triggers occur.
+
 ---
 ## 5. Resource Governance & Availability
 **Representative Controls:** NIST SC‑6; PCI (least functionality linkage 2.2.5); HIPAA continuity considerations.
