@@ -40,7 +40,7 @@ Understanding how controls behave under partial failure prevents silent coverage
 | Admission Ordering | Multiple controllers (SCC, PodSecurity, Gatekeeper/Kyverno, RHACS) | Conflicting deny reasons / mutation ordering | Inconsistent error surfaced to user | Mis-triage & bypass attempts | Define ownership matrix; avoid duplicate rules across controllers | Admission audit logs; compare rejection sources |
 | Runtime Collection | Sensor / Collector DaemonSet | Pod eviction / version mismatch / network partition | Gaps in runtime events; policies still appear “configured” | Undetected runtime anomaly / incident | Monitor collector heartbeat & connected nodes; alert on <100% coverage | Heartbeat metric; node coverage dashboard |
 | Notifier Delivery | Slack / PagerDuty / SIEM forwarding | Credential rotation, endpoint outage | Alerts buffered or dropped; silent failure | Delayed response, lost evidence | Health check synthetic alert daily; alert on notifier error backlog | Notifier failure counter |
-| Vulnerability Export / Reports | Scheduled job / API script | Script error / auth token expired | Missing daily evidence artifact | Evidence gap for audit period | Store hash chain; alert on missing date in sequence | Object store listing gap detection |
+| Vulnerability Export / Reports | Scheduled job / API script | Script error / auth token expired | Missing daily evidence artifact | Evidence gap for audit period | Compute & store external SHA-256 hash chain of daily exports; alert on missing date in sequence | Object store listing gap detection |
 | Logging Pipeline | Forwarder / SIEM ingestion | Buffer full, parse errors, TLS failure | Partial ingest; some events lost | Incomplete forensic trail | Enable pipeline failure alert (PCI 4.0) | SIEM ingestion error dashboard |
 | Policy Exception Expiry | Exception register | Exception passes expiry unnoticed | Control gap persists | Risk acceptance indefinite | Automated job flags exceptions past due date | Daily exception aging report |
 
@@ -122,14 +122,14 @@ Tampered or vulnerable images deliver exploitable components early; signature ga
 2. Enforce “no :latest tag” & digest pinning (policy + manifest review).
 3. Require signatures/attestations for high-risk namespaces (progressively roll out).
 4. Enable and enforce policies for disallowed critical CVEs & unsigned images.
-5. Generate SBOM at build; store artifact + hash. RHACS does not *generate* SBOMs; external pipeline tooling (e.g., Red Hat Trusted Application Pipeline) should create & sign them. Current RHACS correlation is vulnerability-centric—treat SBOM retention + attestation verification as an external control.
+5. Generate SBOM at build; store artifact + externally computed SHA-256 digest. RHACS does not *generate* SBOMs; external pipeline tooling (e.g., Red Hat Trusted Application Pipeline) should create, sign, and (optionally) hash them. Current RHACS correlation is vulnerability-centric—treat SBOM retention, hashing, and attestation verification as an external control.
 6. Track mean time from image build → deploy for provenance freshness metric.
 
 ### Additional Evidence
-- Signed SBOM artifact (hash + timestamp)
+- Signed SBOM artifact (external SHA-256 digest + timestamp)
 - Example signature verification admission log (success + rejection)
  - Exception (if any) showing controlled temporary fallback from block→warn with expiry
- - (If applicable) Secure coding pipeline evidence (SAST/DAST report hash) for public-facing apps (PCI 6.3.2)
+ - (If applicable) Secure coding pipeline evidence (SAST/DAST report + external SHA-256 digest) for public-facing apps (PCI 6.3.2)
 
 ---
 ## 2. Baseline Configuration & Drift Control
@@ -274,7 +274,7 @@ Quickly identify and block the riskiest (fixable) vulnerabilities and prove you 
 ### Simple Action Pattern
 1. Publish a minimal SLA (Critical 7 days, High 30 days). Medium/Low = track only.
 2. Enforce: block new images with fixable Critical CVEs; warn on High (plan date to move High → block).
-3. Daily export a vulnerability summary (keep last 30 days + hashes for integrity) – optional but useful.
+3. Daily export a vulnerability summary (keep last 30 days + external SHA-256 digests for tamper-evidence) – optional but useful.
 4. Rebuild & redeploy images failing policy; verify new digest shows “no fixable Critical”.
 5. Track two metrics: (a) % fixable Critical within SLA (aim ≥95%), (b) Median days to fix Critical (TTRc) trending down.
 
@@ -365,20 +365,20 @@ Maintain immutable, correlated, reviewable evidence of control operation & excep
 - Alert forwarding to SIEM / ticketing
 
 ### OpenShift / Platform Levers
-- External SIEM pipeline, log integrity (hash/WORM), retention policy enforcement
+- External SIEM pipeline, log integrity (external hashing + WORM), retention policy enforcement
 - Time sync (NTP/chrony) for consistent event ordering
 
 ### Key Actions
-1. Nightly compliance export (hash + store in immutable bucket).
+1. Nightly compliance export (compute external SHA-256 digest + store artifact; immutable/WORM storage is external).
 2. Forward policy + runtime alerts to SIEM; alert on pipeline failures.
-3. Implement log integrity verification (hash chain / object lock). 
+3. Implement log integrity verification (externally maintained SHA-256 hash chain / object lock). 
 4. Quarterly Targeted Risk Analysis (TRA) if deviating from default review cadence.
 
 ### Additional Evidence
 - Log pipeline health check report + failure alert test case
  - Admission webhook availability SLO report (ties to enforcement reliability)
  - Statement/evidence of external immutable storage (object lock / WORM) since in-cluster logging stacks are not inherently immutable
- - Explicit PCI 4.0 note: In-cluster logging solutions lack immutability guarantees; PCI DSS requires external WORM or object-lock storage for retention & tamper resistance—export object-lock policy + sample hash chain.
+ - Explicit PCI 4.0 note: In-cluster logging solutions lack immutability guarantees; PCI DSS requires external WORM or object-lock storage for retention & tamper resistance—export object-lock policy + sample externally maintained hash chain index.
 
 ---
 ## 10. Quick Start Checklist
@@ -391,7 +391,7 @@ Maintain immutable, correlated, reviewable evidence of control operation & excep
 | Network segmentation started | Apply namespace default deny (ingress & egress) + first allow rules | NetworkPolicy manifests + coverage screenshot |
 | RBAC hygiene | Reduce cluster-admin to one group; remove direct user bindings | Before/after clusterrolebinding diff (only one group) |
 | Secret leak prevention | Enable secret-in-env detection; fix flagged env vars | Before/after secret violation count trend (→0) |
-| Evidence automation | Schedule nightly compliance export & forward alerts/logs to SIEM | Stored report (hash noted) + SIEM entry with RHACS alert |
+| Evidence automation | Schedule nightly compliance export & forward alerts/logs to SIEM | Stored report + external SHA-256 digest + SIEM entry with RHACS alert |
 
 Note: Each row maps to detailed sections below. Non-experts can ignore framework/control IDs; auditors can use the Control Mapping table.
 
@@ -415,7 +415,7 @@ Tri-Column Coverage Model (applies to all control mapping & evidence tables): Co
 
 Notes:
 - CP-10 (System Recovery) explicitly categorized External: DR plan execution & recovery testing lie outside platform/RHACS evidentiary scope.
-- AU-9 marked partial: RHACS hashing = tamper-evidence; immutable retention (object lock/WORM) external.
+- AU-9 marked partial: RHACS/OpenShift merely produce exportable artifacts; cryptographic hashing (external SHA-256 digests) is performed outside the platforms for tamper-evidence; immutable retention (object lock/WORM) is fully external.
 - AU-12 added to Runtime Detection acknowledging runtime alerts feed the generated audit/security event corpus.
 
 > Interpretation Nuance: If an intended "C" capability is temporarily not enforced (e.g., policy in warn, webhook fail-open), treat it operationally as downgraded (manage via exception register) until restored—do not silently leave as C in internal audit prep artifacts.
@@ -448,7 +448,7 @@ Tables now use three coverage columns: OCP (OpenShift/RHCOS primitives), RHACS (
 | Sub‑Req (3.2.1 / 4.0) | Theme | Focus | OCP | RHACS | External | Notes |
 |------------------------|-------|-------|-----|-------|----------|-------|
 | 10.1 / 10.2.x / 10.3.x | 7 / 9 | Event linkage, capture & detail | P | P | E | OCP audit/events (P) + RHACS security events (P); full enterprise correlation & non-security logs external. |
-| 10.5.x | 9 | Protect log integrity |  | P | E | RHACS hashing (P); immutable/WORM storage external. |
+| 10.5.x | 9 | Protect log integrity |  | P | E | Externally computed hashes of RHACS/OpenShift exports (P); immutable/WORM storage external. |
 | 10.6 | 9 | Daily review |  | P | E | RHACS dashboards/exports (P); formal review process external. |
 | 10.7 | 9 | Retention |  |  | E | Long-term retention & legal hold external. |
 | 4.0 – logging failure detect | 9 | Pipeline failure alerting | P | P |  | OCP forwarder / pipeline health (P) + RHACS notifier/error metrics (P) combine for detection. |
@@ -485,14 +485,14 @@ Maintain a Targeted Risk Analysis (TRA) record for any deviation (e.g., differen
 | Segmentation (Req 1) | NetworkPolicy manifests + coverage % | Coverage export / flow graph | Firewall / mesh policy | Demonstrates layered intra-cluster deny + perimeter & L7/mTLS controls. |
 | Vulnerability Mgmt (Req 6) | (optional) ImageContentSourcePolicy / digest pinning evidence | Blocked Critical CVE deploy log | Rebuild pipeline log | Shows enforcement gate + actual rebuild/remediation chain. |
 | Access (Req 7) | RBAC diff (quarterly signed) | Privilege anomaly report | IAM role design approval | Least privilege maintenance across platform + identity governance. |
-| Logging (Req 10) | Audit log forwarding config excerpt | Daily export hash index | SIEM WORM retention config | Integrity + retention assurance with hash chain + immutable store. |
-| Change Control (Req 6.4) | MachineConfig / policy commit reference | Policy JSON commit hash | CAB ticket referencing hash | Traceability from enforced config to approved change record. |
+| Logging (Req 10) | Audit log forwarding config excerpt | Daily export external hash index | SIEM WORM retention config | Integrity (tamper-evidence via external hashes) + retention (immutability) in external store. |
+| Change Control (Req 6.4) | MachineConfig / policy commit reference | Policy JSON commit external digest | CAB ticket referencing digest | Traceability from enforced config to approved change record. |
 
 ### A.5 PCI Quick Gap Checklist
 1. Any namespace lacking deny-all baseline policy? (Req 1 risk)
 2. Critical fixable CVE past SLA? (Req 6 gap)
 3. >1 cluster-admin group? (Req 7 gap)
-4. Missing a daily export hash? (Req 10 evidence gap)
+4. Missing a daily export external digest? (Req 10 evidence gap)
 5. Customized approach without TRA? (4.0 deficiency)
 
 ---
@@ -518,7 +518,7 @@ Focused on Moderate baseline (Rev 5) control families most often cited in platfo
 | AU‑2 / AU‑2(3) | Event Logging / Central Review | 9 | P | P | E | OCP audit events + RHACS security events; central correlation & full audit set external. |
 | AU‑6 / AU‑6(3) | Audit Review / Correlation | 9 | P | P | E | Requires SIEM correlation externally. |
 | AU‑8 | Time Stamps | 9 | P |  | E | Node/cluster NTP (platform); correlation governance external. |
-| AU‑9 / AU‑9(2) | Audit Protection / Tamper Resistance | 9 |  | P | E | RHACS export hashing (P); WORM/object lock external. |
+| AU‑9 / AU‑9(2) | Audit Protection / Tamper Resistance | 9 |  | P | E | External cryptographic digests of exports (P); WORM/object lock external. |
 | AU‑12 | Audit Generation | 9 | P | P | E | Partial security telemetry only; full audit scope external. |
 | CA‑7 | Continuous Monitoring | 1–9 | P | P | E | Contributes technical signals; org-wide monitoring strategy external. |
 | CM‑2 / CM‑2(2) | Baseline Configuration / Automation | 1 / 2 | C | P | E | OCP declarative config (MachineConfig, SCC); RHACS drift/misconfig detection; baseline approval external. |
@@ -553,7 +553,7 @@ Legend Recap (Appendix B): Column-specific. OCP: OpenShift/RHCOS primitives. RHA
 
 *SC‑8 Clarification:* Marked Partial because OpenShift natively terminates and serves TLS for Routes/Ingress, can enable encrypted node overlay (IPsec depending on network configuration/version), and (optionally) Service Mesh supplies mTLS for east‑west traffic. RHACS itself does not generate, rotate, or validate certificates or cipher policies—capture evidence via: Ingress Controller TLS config/certificate inventory, mesh PeerAuthentication / DestinationRule (or equivalent) showing STRICT mTLS, and (if applicable) cluster network encryption status documentation. If none of these platform features are enabled yet, downgrade SC‑8 to External (E) until cryptographic controls are operational.
 
-> Implementation Tip: When building an SSP, cite this table and then link each (P) / (E) control to either (a) platform configuration export (e.g., NetworkPolicy manifests, SCC profiles, mesh mTLS policy) or (b) governance artifacts (CAB approvals, IR plan version). For (C) items, embed RHACS policy JSON export hash + sample violation or compliance report line item.
+> Implementation Tip: When building an SSP, cite this table and then link each (P) / (E) control to either (a) platform configuration export (e.g., NetworkPolicy manifests, SCC profiles, mesh mTLS policy) or (b) governance artifacts (CAB approvals, IR plan version). For (C) items, embed RHACS policy JSON export plus its externally computed SHA-256 digest + sample violation or compliance report line item (digest provides tamper-evidence, not immutability).
 
 ### B.2 Tailoring & Gaps
 1. Tailor out controls not applicable to container platform scope (e.g., AC‑19) to prevent artificial gap listings.
@@ -564,11 +564,11 @@ Legend Recap (Appendix B): Column-specific. OCP: OpenShift/RHCOS primitives. RHA
 ### B.3 Minimal Evidence Bundles (Examples)
 | Control Focus | OCP Artifact | RHACS Artifact | External Artifact | Sufficiency Rationale |
 |---------------|-------------|---------------|-------------------|-----------------------|
-| RA‑5 (Vuln Monitoring) | (optional) Image digest pinning manifest | Vulnerability report export (timestamp + hash) | Pipeline rebuild log referencing digest | Correlates detected risk → enforced gate → rebuild action. |
+| RA‑5 (Vuln Monitoring) | (optional) Image digest pinning manifest | Vulnerability report export (timestamp + external digest) | Pipeline rebuild log referencing digest | Correlates detected risk → enforced gate → rebuild action. |
 | SC‑7 (Segmentation) | NetworkPolicy manifest set + coverage % | Coverage trend graph | Mesh mTLS policy export + firewall ACL | Validates layered L3/L4 deny + L7/mTLS + perimeter segmentation. |
 | CM‑2 (Baseline Config) | MachineConfig & SCC profile list | Policy set JSON (signed commit) | Hardening standard doc version | Links declarative baseline → enforcement → approved standard. |
 | IR‑4(5) (Automated Response) | (N/A) | Runtime policy kill/scale action log | Incident ticket with closure notes | Shows automated containment tied to formal IR follow-up. |
-| AU‑9 (Audit Protection) | Audit forwarder config checksum | Hash chain index of daily exports | Object store WORM policy export | Demonstrates end-to-end tamper resistance chain. |
+| AU‑9 (Audit Protection) | Audit forwarder config checksum | External hash chain index of daily exports | Object store WORM policy export | Demonstrates end-to-end tamper-evidence + immutable retention chain. |
 
 
 ---
@@ -603,14 +603,14 @@ Legend Recap (Appendix B): Column-specific. OCP: OpenShift/RHCOS primitives. RHA
 | Focus | OCP Artifact | RHACS Artifact | External Artifact | Narrative |
 |-------|-------------|---------------|-------------------|----------|
 | Integrity | ClusterImagePolicy / signature admission config | Blocked unsigned image log | Cosign verify output + key SOP | Combined platform verification config + enforcement outcome + key governance. |
-| Audit Controls | Audit log forward config excerpt | Security event export hash | SIEM PHI access log sample | Infrastructure + security events correlated with PHI access trail. |
+| Audit Controls | Audit log forward config excerpt | Security event export external digest | SIEM PHI access log sample | Infrastructure + security events correlated with PHI access trail (tamper-evident via external digest). |
 | Transmission Security | NetworkPolicy manifest + (if mesh) PeerAuthentication STRICT | (optional) Custom detection for plaintext endpoint | Ingress/mTLS config export | Demonstrates enforced segmentation + encrypted transport; detection for gaps. |
 | Risk Management Input | MachineConfig & RBAC drift report | Vuln & misconfig trend export | Formal Risk Assessment report | Technical risk metrics feeding enterprise risk analysis. |
 
 ### C.3 HIPAA Quick Gap Checks
 1. Unsigned image in production? (Integrity risk)
 2. Privileged container exception without expiry? (Access safeguard gap)
-3. Missing daily security event export hash? (Audit evidence gap)
+3. Missing daily security event export external digest? (Audit evidence gap)
 4. No key rotation proof (<12 months)? (Integrity/encryption supporting gap)
 5. DR test older than policy interval? (Contingency gap)
 
@@ -692,7 +692,7 @@ Use this table internally (expand per environment). Populate “Status” with: 
 | Data-at-Rest Encryption | Storage classes, database | Infra / DB | Encryption enablement evidence | Annual | YYYY-MM-DD | Green | Cross-check new storage class defaults |
 | Network Encryption (TLS / Mesh) | mTLS, ingress TLS | Platform / NetSec | Mesh policy export + cert inventory | Quarterly | YYYY-MM-DD | Green | Expiring cert alert threshold 30d |
 | WAF / API Gateway Protection | OWASP rules, DDoS | AppSec | WAF policy export + sampled logs | Monthly | YYYY-MM-DD | Green | Include anomaly score trend |
-| SAST / DAST / Code QA (PCI 6.3.2) | Static + dynamic testing incl. dependency & IaC scans | AppSec / RHTAP | Signed scan report bundle (hash chain) + pipeline run ID | Per Release | YYYY-MM-DD | Amber | Coverage gap in legacy service X; correlate run ID to blocked deploy evidence |
+| SAST / DAST / Code QA (PCI 6.3.2) | Static + dynamic testing incl. dependency & IaC scans | AppSec / RHTAP | Signed scan report bundle (external hash chain) + pipeline run ID | Per Release | YYYY-MM-DD | Amber | Coverage gap in legacy service X; correlate run ID to blocked deploy evidence |
 | License Compliance / SBOM Legal | OSS license scans | Legal / AppSec | License scan diff + approvals | Quarterly | YYYY-MM-DD | Green | Automate accept/deny list sync |
 | Backup & DR | Snapshot & restore tests | Infra | DR test report + RPO/RTO metrics | Semi-Annual | YYYY-MM-DD | Amber | Next restore test scheduled |
 | Log Retention & Immutability | SIEM, Object store | SecOps | Retention config + WORM policy export | Annual | YYYY-MM-DD | Green | Confirm legal hold handling |
@@ -716,7 +716,7 @@ Add this register to compliance review packs; each RED item should have a remedi
 | Network Segmentation | NetworkPolicy enforcement, namespace isolation baseline | Gap detection (missing policies), flow visualization | L7 authZ, DPI, IDS/IPS, mesh mTLS governance | NetworkPolicy coverage report, mesh policy export, IDS alert sample |
 | Secrets Exposure | Platform secret objects, external secret operator integration | Pattern-based env/config secret detection | Vault storage, rotation, short-lived creds | Secret violation trend, vault rotation report, exception register |
 | Runtime Threat Detection | (Baseline isolation reducing noise) | Process/network anomaly policies, notifier evidence | Full IR runbooks, forensics, SIEM correlation rules | Runtime alert sample + ticket, IR runbook version, SIEM correlated event |
-| Logging & Integrity | Audit log emission & forwarding config | Alert/log export events, compliance scheduling, hash chain | WORM storage, retention, central correlation | Hash chain index, object lock config, SIEM ingestion dashboards |
+| Logging & Integrity | Audit log emission & forwarding config | Alert/log export events, compliance scheduling, external hash chain | WORM storage, retention, central correlation | External hash chain index, object lock config, SIEM ingestion dashboards |
 | License Compliance (800-190 4.1.14 External) | (N/A) | (Indirect) package inventory via scans | License analysis, legal approval workflow | License scan diff, approval tickets, component report snapshot |
 | Signature / Attestation Chain | Signature verification enforcement (admission) | Policy check for presence of signatures/labels | Key custody, Rekor transparency validation | Key management SOP, cosign verify log, policy pass report |
 | Policy Exceptions | (N/A) | Violation visibility, enforcement phase tracking | Governance workflow (approvals, expiry) | Exception register, policy diff, closure ticket |
@@ -724,7 +724,7 @@ Add this register to compliance review packs; each RED item should have a remedi
 | Resource Governance | Quotas & LimitRanges enforce ceilings | Missing limit detection policies | Capacity planning & autoscaling strategy | Limits compliance pass, quota manifests, utilization vs quota report |
 | Data-in-Transit Security | Ingress TLS termination, optional mesh mTLS/IPsec | (Optional) Detection of plaintext endpoints (custom) | Certificate lifecycle, cipher policy management | Mesh cert inventory, gateway TLS config, detection result |
 | Data-at-Rest Integrity | Encrypted etcd/storage (platform config) | Enforce signed/immutable images, non‑root | Storage encryption keys, snapshot protection | KMS config, snapshot immutability proof, non-root policy pass |
-| SBOM vs Component Inventory | (N/A) | Vulnerability-derived component listing | Formal SPDX/CycloneDX & license context | Component export, SBOM file hash, license report |
+| SBOM vs Component Inventory | (N/A) | Vulnerability-derived component listing | Formal SPDX/CycloneDX & license context | Component export, SBOM file external digest, license report |
 
 > Use this index to pre-empt auditor “scope inflation” questions: for each shared control, you present split responsibilities plus cohesive evidence chain.
 
@@ -751,7 +751,7 @@ This appendix defines the authoritative scope boundaries for the evidence and co
 #### G.1b RHACS Overlay
 | Component | Scope Description | Control Surface (Representative) | Primary Evidence Artifacts |
 |-----------|-------------------|----------------------------------|-----------------------------|
-| RHACS Central | Policy brain & API | Policy evaluation, compliance reporting, vuln data | Policy JSON exports (signed), compliance report hashes |
+| RHACS Central | Policy brain & API | Policy evaluation, compliance reporting, vuln data | Policy JSON exports (signed); external digests of compliance reports |
 | RHACS Scanner / Scanner DB | Image & component analysis | Vulnerability & component inventory | Scan result exports, vuln trend metrics |
 | RHACS Admission Controller (Validating Webhook) | Deploy-time gating | Misconfig, vuln, signature, risk-based deny/warn | Admission denial events, failurePolicy config snapshot |
 | RHACS Sensor & Collector | Runtime & deploy telemetry | Process/network baselines, runtime policy triggers | Runtime alert logs, connected node coverage report |
@@ -768,14 +768,14 @@ These areas are acknowledged dependencies or complementary controls but **not** 
 | Enterprise IAM / MFA / SSO | User identity lifecycle & strong auth handled upstream | IdP (Keycloak, Okta, AAD, etc.) | MFA policy doc, IdP config snapshot, access review reports |
 | Non-RHCOS Host OS Hardening / Bare Metal / Ancillary VMs | Guide centers on managed RHCOS nodes; other OS baselines differ | RHEL, Windows Server, Hypervisor layer | CIS benchmark reports, patch cadence, hardening scripts |
 | Vault / Key Lifecycle Management | Secrets storage, rotation, escrow, key destruction | HashiCorp Vault, KMS (AWS KMS, Azure Key Vault), HSM | Key policy JSON, rotation logs, vault audit log excerpt |
-| SAST / DAST / IaC Scanning | Application & infrastructure code analysis outside runtime/deploy gating | CI/CD security tools (SonarQube, CodeQL, Checkov, Trivy IaC) | Scan reports (hash), remediation tickets, pipeline run IDs |
+| SAST / DAST / IaC Scanning | Application & infrastructure code analysis outside runtime/deploy gating | CI/CD security tools (SonarQube, CodeQL, Checkov, Trivy IaC) | Scan reports (external digest), remediation tickets, pipeline run IDs |
 | Software Composition Analysis License Governance | Legal & license risk not enforced in RHACS | Dependency/license scanner | License scan diff, approval register |
 | Backup & Disaster Recovery | Data/state resilience, restore validation | Backup platform, DR orchestration | DR test report, RPO/RTO metrics, backup integrity log |
 | Business Continuity / BIA | Organizational process domain | GRC tooling | BIA document, review approval |
 | WAF / API Gateway / L7 Threat Mitigation | Application-layer security beyond L3/L4 policy | API Gateway, WAF, CDN | WAF policy export, sampled blocked request logs |
 | IDS / IPS / Deep Packet Inspection | Packet payload & advanced signature analysis | Network IDS/IPS, eBPF sensors | Alert sample, rule pack version, coverage map |
 | SIEM Correlation & Advanced Analytics | Cross-domain event normalization & correlation logic | SIEM / UEBA platform | Correlation rule pack diff, suppression list, dashboard screenshot |
-| Central Log Retention, WORM Storage | Long-term immutable storage & legal hold | Object store (S3 Object Lock, GCS), SIEM archive | Retention policy export, object lock configuration, hash chain index |
+| Central Log Retention, WORM Storage | Long-term immutable storage & legal hold | Object store (S3 Object Lock, GCS), SIEM archive | Retention policy export, object lock configuration, external hash chain index |
 | Data Encryption (At Rest & In Transit) Beyond Cluster Defaults | TLS termination, database/storage encryption lifecycle | Mesh, Ingress Controller, DB/KMS | TLS cipher policy, cert inventory, encryption enablement evidence |
 | Incident Response Runbooks & Forensic Procedures | Human process & deep forensic tooling | IR platform, playbook repository | Runbook version hash, tabletop exercise report |
 | Advanced Forensics & Memory Analysis | Memory/disk timeline, packet capture beyond RHACS telemetry | Forensics suite / EDR | Memory dump procedure, forensic artifact chain of custody |
@@ -792,7 +792,7 @@ RHCOS (Red Hat Enterprise Linux CoreOS) is a **transactional, controlled** opera
 
 Evidence Bundle (Example):
 - MachineConfig YAML (signed commit) + associated OSTree commit IDs.
-- `oc adm release info` output (release image signature) captured & hashed.
+- `oc adm release info` output (release image signature) captured; external SHA-256 digest recorded.
 - SELinux enforcing status sample across nodes.
 - Exception log (if any) for manual node changes with remediation.
 
@@ -807,7 +807,7 @@ Use this statement in audit introductions:
 | MachineConfig drift | Review current rendered MachineConfig state vs version-controlled baseline | No unmanaged node file changes | Create remediation PR or exception entry |
 | SELinux enforcing everywhere | Sample representative nodes to confirm SELinux enforcement status | All = Enforcing | Investigate node; restore enforcing & document |
 | Unsupported manual changes (out-of-band node edits) | MachineConfig Operator rendered-state comparison plus (optional) compliance file rule and targeted node inspection | No unmanaged file drift; all nodes conform to rendered MachineConfig | Immediate cordon & investigate → revert or codify via MachineConfig; raise exception ticket (time‑bound); treat manual change as policy violation |
-| Operator baselines intact (Compliance/SPO) | Confirm operators healthy; review compliance suites & remediations status; verify active security profiles match approved hashes in repo; ensure no failed checks or unmanaged local-only profiles | All relevant operator components healthy; every profile matches approved baseline; zero failed compliance checks | If drift or failure detected: raise exception, restore profile from source or update baseline via approved review, document closure |
+| Operator baselines intact (Compliance/SPO) | Confirm operators healthy; review compliance suites & remediations status; verify active security profiles match approved content digests (Git commit SHAs) in repo; ensure no failed checks or unmanaged local-only profiles | All relevant operator components healthy; every profile matches approved baseline; zero failed compliance checks | If drift or failure detected: raise exception, restore profile from source or update baseline via approved review, document closure |
 
 ### G.6 Handling Out-of-Scope Auditor Requests
 Provide a polite redirect pattern:
@@ -826,6 +826,15 @@ Version this Appendix (G) independently; any addition/removal of in-scope compon
 4. Notify audit preparation distribution list
 
 > Principle: Scope drift without explicit versioning erodes evidence credibility—treat scope like code.
+
+### G.8 Hashing Clarification (Tamper-Evidence vs Immutability)
+In this guide, references to “hashing” or “hash digests” mean the external process of applying a cryptographic one-way function (e.g., SHA-256) to exported artifacts (compliance reports, logs, SBOMs, policy JSON, configuration snapshots).
+
+- **Purpose:** Produces a unique fingerprint of each artifact. Any subsequent alteration changes the digest, providing **tamper-evidence**.
+- **Limitation:** A digest alone does **not** make evidence immutable; it only detects modification after the fact.
+- **Immutability Requirement:** True evidentiary immutability + retention (e.g., for AU-9 / PCI 10.5 expectations) must be furnished by external controls: object-lock / WORM-capable storage, SIEM archival tiers, or compliant records management systems. RHACS and OpenShift *emit* artifacts; they do not perform or manage hashing or write-once retention internally.
+- **Audit Mapping (AU-9, PCI DSS 10.5):** External cryptographic digests satisfy the “integrity / tamper-detection” element (Partial = P). Immutable retention & legal hold are fully External (E) responsibilities.
+- **Operational Practice:** Automate digest generation (e.g., pipeline job computing SHA-256, updating a signed index manifest) and store both artifact and digest in WORM/object-lock storage. Periodically reconcile index vs stored objects; alert on gaps or digest mismatches.
 
 ---
 ## 12. Extending & Maturing
