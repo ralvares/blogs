@@ -23,7 +23,10 @@ Describes how containers use immutable images and centralized patching. Shows wh
 ### 2a. Base Image Approval Policy
 **Document:** [base-image-approval-policy.md](base-image-approval-policy.md)  
 **Overview:**  
-Describes the policy and automated enforcement for ensuring all container builds use only approved, secure base images. Explains how this reduces supply chain risk and is enforced in CI/CD using Conftest.
+Defines the policy for ensuring all container builds use only approved, secure base images.  
+Highlights the importance of **inner loop enforcement** (developer workstation checks, pre-commit hooks) to catch violations early and reduce wasted CI/CD cycles.  
+The same Rego policy is portable and reused in CI/CD, where it acts as a final validation step.  
+By shifting enforcement left, this policy reduces supply chain risk, saves time and money, and ensures only trusted base images reach production.  
 
 ---
 
