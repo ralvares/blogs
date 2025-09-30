@@ -22,7 +22,7 @@ VMs provisioned **after** the template is updated include the fix by default.
 The previously provisioned VMs (Feb–Apr) do **not inherit the patch**. They remain vulnerable to the CVE unless manually remediated.
 
 ### 6. **Manual Patching Is Required**
-To patch these VMs, a tool like **Red Hat Satellite** must be used to manually deliver the updates.
+To patch these VMs, an external lifecycle tool such as **Red Hat Satellite** must be used to manually deliver the updates.
 
 > 🔁 This manual lifecycle creates complexity and risk, especially at scale.
 
@@ -81,7 +81,7 @@ Containers, by design, use an **immutable image model**. Instead of patching run
 - Every image is versioned and signed; deployments are always from a known, trusted source.
 - Rollbacks and audits are simple: you know exactly what code and dependencies are running.
 
-#### 4. **No More Configuration Drift**
+#### 4. **Containers eliminate config drift when pipelines and base images are enforced.**
 - Since containers are replaced, not patched in place, there is no risk of VMs drifting out of compliance or missing patches.
 
 #### 5. **Speed and Scale**
@@ -112,7 +112,7 @@ graph TD
 | Aspect                | Traditional VM                        | Container Workflow (Base Image Model)      |
 |-----------------------|---------------------------------------|--------------------------------------------|
 | Patch Propagation     | Manual, per-VM                        | Automated, via base image rebuild          |
-| Drift Risk            | High (each VM drifts over time)       | Low (images are immutable, always replaced)|
+| Drift Risk            | High (each VM drifts over time)       | Low (images are immutable, always redeployed)|
 | Auditability          | Complex, requires tracking per VM     | Simple, image history and provenance       |
 | Speed of Remediation  | Slow, operationally intensive         | Fast, scalable, automated                  |
 | Consistency           | Inconsistent, depends on manual work  | Consistent, enforced by pipeline           |
