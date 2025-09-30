@@ -43,7 +43,9 @@ In a world where CVEs are piling up faster than they can be processed, the idea 
 > “This image has zero CVEs” sounds great, until next week.
 
 ### The Reality: 
-- “Zero-CVE” is meaningless without lifecycle discipline, a clean image today can accumulate critical CVEs in a matter of days. But blindly chasing Zero-CVE can also introduce risk: rebuilding with the latest packages might bring in breaking changes or regressions, especially when scanners fail to recognize backported fixes. Without clear provenance and compatibility guarantees, ‘fixing’ a CVE might unintentionally break the application.”
+- “Zero-CVE” is meaningless without lifecycle discipline, a clean image today may accumulate new critical CVEs within days.
+- Scanners may flag CVEs even if the package has a vendor backport applied (false positive without context).
+- But blindly chasing Zero-CVE can also introduce risk: rebuilding with the latest packages might bring in breaking changes or regressions, especially when scanners fail to recognize backported fixes. Without clear provenance and compatibility guarantees, ‘fixing’ a CVE might unintentionally break the application.”
 
 ### Why This Matters:
 
@@ -57,7 +59,7 @@ Even trusted vendors offering “zero CVE” images rely on:
 
 ## Why It Feels Like There Are More Vulnerabilities Now
 
-Vulnerabilitie scanners often surface more vulnerabilities than what teams were used to seeing in traditional environments, and that can feel overwhelming at first.
+Vulnerability scanners often surface more vulnerabilities than what teams were used to seeing in traditional environments, and that can feel overwhelming at first.
 
 But the reality is:
 - These tools aren’t generating noise, they’re providing full visibility.
@@ -144,7 +146,7 @@ graph TD
 > If vulnerabilities are inevitable, what matters is how quickly and safely you can respond.  
 > That’s why immutability isn’t just a dev best practice, it’s a security strategy.
 
-Containers should never be patched in place.  
+Workloads should never be patched in place.  
 Instead: **rebuild → redeploy → replace**.
 
 ### Why It Matters:
@@ -189,6 +191,7 @@ Once deployed, modern security platforms help you enforce context-based policy d
   - Privilege escalation (root, hostPath)  
   - Internet exposure (e.g., no ingress controls)  
 - Use network graph + enforcement to isolate apps  
+- Leverage RHACS (or equivalent) to enforce these runtime policies and send alerts to SIEM/ChatOps.  
 
 ---
 
@@ -219,7 +222,7 @@ With GitOps:
 | Deploy          | Enforce digest + admission controls               |
 | Runtime         | Block excessive privileges, isolate workloads     |
 | Visibility      | Use security platforms to track, triage, and own risk |
-| Process         | Immutable workflows + GitOps promotion            |
+| Process         | Enforce immutability, GitOps, and auditable change promotion            |
 
 ---
 

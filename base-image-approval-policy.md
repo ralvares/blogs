@@ -7,14 +7,14 @@ To ensure every container build in our organization starts from a trusted, secur
 
 ###  Why This Matters
 
-Base images form the foundation of every container. Using unapproved or vulnerable base images introduces risk across the software supply chain, even before your application code is touched.
+Base images form the foundation of every containerized workload. Using unapproved or vulnerable base images introduces risk across the software supply chain, even before your application code is touched.
 
 **Risks include:**
-- ❗ Vulnerable or outdated packages
-- ❗ Malicious or backdoored community images
-- ❗ Compliance violations
-- ❗ Build instability or drift
-- ❗ Reputational or financial loss due to supply chain attacks
+- Vulnerable, outdated packages
+- Malicious or backdoored community images
+- Compliance violations
+- Build instability or drift
+- Reputational or financial loss due to supply chain attacks
 
 ---
 
@@ -22,23 +22,23 @@ Base images form the foundation of every container. Using unapproved or vulnerab
 
 All changes to container build files (like Dockerfile or Containerfile) must go through Git and a pull request (PR). Here’s why:
 
-#### ✅ Auditability
+#### Auditability
 
 Git gives us a complete history of every change, who changed what, when, and why. This is critical for security investigations and compliance audits.
 
-#### ✅ Accountability
+#### Accountability
 
 Every change must go through a PR. This ensures that no one bypasses controls, and that there’s a clear reviewer/approver trail.
 
-#### ✅ Review Workflow
+#### Review Workflow
 
 PRs allow security and platform teams to review changes before they’re merged, especially base image updates, which have widespread impact.
 
-#### ✅ Reproducibility
+#### Reproducibility
 
 Centralized and version-controlled Dockerfiles make builds reproducible, enabling consistent environments across CI, staging, and production.
 
-#### ✅ Change Governance
+#### Change Governance
 
 With Git, we can enforce approvals and automated checks before changes are allowed, and we can even require security sign-off for sensitive image layers.
 
@@ -47,28 +47,27 @@ With Git, we can enforce approvals and automated checks before changes are allow
 ---
 
 ### Policy Summary
-- All container builds must use base images from an approved internal registry
-- Any change to Dockerfile, Containerfile, or similar must be made via Pull Request
-- The CI pipeline validates that only trusted base images are used
-- Any use of unapproved base images results in a pipeline failure and PR rejection
+- All container builds must use base images from an approved internal registry.
+- Any change to Dockerfile, Containerfile, or similar must be made via Pull Request.
+- The CI pipeline validates that only trusted base images are used.
+- Any use of unapproved base images results in a pipeline failure and PR rejection.
 
 ---
 
 ### Approved Base Image Sources
 
-Base images must start with one of the following trusted prefixes (set via env variable):
+Base images must start with one of the following trusted prefixes. These prefixes are set via CI/CD environment variables and maintained by the platform team:
 - `quay.myorg.com/approved/`
 - `quay.anotherorg.com/trusted/`
-- (This list is maintained by the platform team)
 
 These images are:
-- ✅ Scanned regularly for CVEs
-- ✅ Signed and stored in a secure registry
-- ✅ Built using minimal, hardened, and trusted sources
+- Scanned regularly for CVEs
+- Signed and stored in a secure registry
+- Built using minimal, hardened, and trusted sources
 
 ---
 
-### How CI Validates Dockerfiles
+### CI Validation Process
 
 We use [Conftest](https://www.conftest.dev/) to enforce base image policy in CI. Conftest parses Dockerfiles and applies a Rego policy to ensure only approved base images are used.
 
@@ -108,17 +107,29 @@ jobs:
 ### PR Review Enforcement
 
 We use the following Git protections:
-- 🔐 PRs are required for any file changes
-- 🔐 CODEOWNERS enforce mandatory review for Dockerfiles
-- 🔐 Status checks (like base image validation) must pass
-- 🔐 No direct pushes to main are allowed
+- PRs are required for any file changes
+- CODEOWNERS enforce mandatory review for Dockerfiles
+- Status checks (like base image validation) must pass
+- No direct pushes to main are allowed
+
+Together, these protections ensure no unreviewed or non-compliant base image ever reaches production.
 
 ---
 
-### 🧪 Testing Locally
+### Testing Locally
 
 To test your changes before pushing:
 
 ```sh
 conftest test conftest/Dockerfile --policy conftest/base-image-approval.rego
 ```
+
+Local testing ensures developers catch violations before CI/CD rejects their PR.
+
+---
+
+### Git Hooks for Early Validation
+
+To catch violations even earlier in the development process, consider implementing Git pre-commit hooks that run the Conftest validation locally before allowing commits. This prevents non-compliant changes from being committed in the first place.
+
+Tools like [pre-commit](https://pre-commit.com/) can automate this by running the policy check on staged files, ensuring a smoother workflow and reducing CI failures.
