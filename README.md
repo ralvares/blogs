@@ -34,10 +34,18 @@ Outlines a modern, risk-driven approach to vulnerability management using RHACS.
 
 ---
 
+### 4. Compliance Mapping: Controls, Evidence & Boundaries
+**Document:** [compliance.md](compliance.md)  
+**Overview:**  
+Provides a detailed compliance alignment guide for OpenShift and RHACS. Maps container/Kubernetes security controls to frameworks such as NIST 800-53, PCI DSS, HIPAA, and NIST 800-190. Explains in-scope vs. out-of-scope responsibilities, evidence expectations, and how to present platform capabilities during audits. Includes appendices for control mapping, scope declaration, and clarification registers.
+
+---
+
 ## How to Use This Guide
 
-1. **Start with the legacy pain points** in VM security.
-2. **Understand how containers change the game** and why visibility increases.
-3. **Adopt a risk-based, automated security approach** with RHACS and OpenShift.
+1. **Start with the legacy pain points** in VM security.  
+2. **Understand how containers change the game** and why visibility increases.  
+3. **Adopt a risk-based, automated security approach** with RHACS and OpenShift.  
+4. **Use the compliance mapping** to translate platform capabilities into audit-ready evidence across multiple frameworks.
 
 ---
