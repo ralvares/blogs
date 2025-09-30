@@ -27,14 +27,14 @@ At the heart of OpenShift is Red Hat CoreOS (RHCOS), a minimal, container-optimi
 
 ### Control Plane Security
 The OpenShift control plane is hardened with enterprise-grade protections:
-- **TLS Encryption**: All inter-component communications (API server, etcd, kubelet) use TLS 1.2+ encryption (including TLS 1.3) with mutual authentication to reduce man‑in‑the‑middle risk.
+- **TLS Encryption**: Inter-component communications use TLS 1.2+ encryption; mutual TLS is enforced on key paths like API server ↔ etcd and API server ↔ kubelet.
 - **RBAC and Authentication**: Strict Role-Based Access Control (RBAC) is enforced by default, integrating with OAuth2 and enterprise identity providers (LDAP, Active Directory, OIDC). Service accounts are scoped to namespaces, reducing blast radius.
-- **etcd Encryption**: Sensitive data in etcd is encrypted at rest, with options for external key management via AWS KMS or HashiCorp Vault.
+- **etcd Encryption**: Sensitive data in etcd is encrypted at rest (requires configuration).
 
 ### Threat-Aware Design and Real-World Mitigations
 OpenShift proactively addresses known attack vectors:
-- **Container Breakout Prevention**: Security Context Constraints (SCCs) enforce non-root execution, block privilege escalation, and restrict host access. For instance, CVE-2024-21626 ("Leaky Vessels") exploits container build processes to escape to the host; OpenShift's layered SCCs and SELinux policies contain such attacks, preventing cluster-wide compromise.
-- **Network Isolation**: Projects (namespaces) are isolated by default, with NetworkPolicies enforcing least-privilege networking. Advanced isolation via User-Defined Networks (UDNs) and Cluster UDNs provides non-overlapping IP subnets for multi-tenant environments.
+- **Container Breakout Prevention**: Security Context Constraints (SCCs) enforce non-root execution by default (via the restricted SCC), block privilege escalation, and restrict host access; privileged SCCs exist for specific use cases. For example, CVE-2024-21626 exploits container build processes to escape to the host; OpenShift's SCCs and SELinux policies stop such attacks from spreading across the cluster.
+- **Network Isolation**: By default, pod-to-pod traffic is open across namespaces (namespaces provide administrative scoping and RBAC separation, not automatic network blocking). To secure it, apply NetworkPolicies for least-privilege access. For stronger multi-tenant isolation, use User-Defined Networks (UDNs, available in OpenShift 4.15+) or Cluster UDNs, which create separate IP subnets.
 - **Admission Controllers**: SCCs enforce workload safety, complemented by validating/mutating admission webhooks where configured, blocking misconfigurations like privileged pods or host mounts.
 
 This foundation ensures that OpenShift reduces exposure to threats like lateral movement, root abuse, and untrusted code execution without requiring extensive custom configurations.
@@ -59,7 +59,7 @@ Security in OpenShift extends throughout the platform's lifecycle, from deployme
 Red Hat maintains critical components (RHCOS, CRI-O, kubelet) through a rigorous release cycle, including security audits and vulnerability assessments. Updates are delivered via Operator Lifecycle Manager (OLM), ensuring consistency across clusters.
 
 ### Support Timelines and Extended Update Support (EUS)
-Each release has defined support phases: Full Support (bug fixes and security patches), Maintenance (critical security fixes), and EUS (extended updates for stability-focused environments). This predictability allows customers to plan migrations and avoid unsupported versions that expose them to unpatched vulnerabilities.
+Each release has defined support phases: Full Support (bug fixes and security patches), Maintenance (critical security fixes), and EUS (extended updates for stability and security in long-term environments). This predictability allows customers to plan migrations and avoid unsupported versions that expose them to unpatched vulnerabilities.
 
 ### Transparency and Compliance Artifacts
 - **SBOMs and VEX**: Red Hat provides Software Bills of Materials (SBOMs) in CycloneDX format and Vulnerability Exploitability eXchange (VEX) documents, enabling automated vulnerability scanning and compliance reporting (e.g., for NIST, CISA requirements).
@@ -96,7 +96,7 @@ Data persistence is secured without application changes:
 
 ### TLS Everywhere
 All communications are TLS-encrypted by default:
-- **API and Web Console**: Mutual TLS for control plane interactions.
+- **API and Web Console**: Mutual TLS is used for key control plane paths (e.g., API server ↔ etcd).
 - **Service Mesh Integration**: Istio or Red Hat Service Mesh extends encryption to east-west traffic, with mTLS enforcement.
 - **Ingress and Egress**: Automated certificate handling for external routes.
 
@@ -105,7 +105,7 @@ This ensures data integrity and confidentiality, mitigating risks like eavesdrop
 ## Identity, Access, and Workload Controls
 Beginner summary:
 - Ensures only the right users and services can perform sensitive actions.
-- Blocks risky workload settings (privileged, root, host access) by default.
+- Blocks risky workload settings by default (via restricted SCC); privileged access requires explicit SCC assignment.
 - Verifies image origin and integrity before running workloads.
 OpenShift embeds zero-trust principles through granular access controls and workload enforcement.
 
@@ -120,7 +120,7 @@ Admission controllers enforce SCCs, preventing:
 - Misconfigurations that could lead to breaches.
 
 ### Image Supply-Chain Integrity
-- **Signature Verification**: Integrates with Sigstore for cryptographic signing, blocking unsigned or tampered images.
+- **Signature Verification**: Integrates with Sigstore for cryptographic signing; blocking unsigned images requires policy enforcement (e.g., via admission controllers or RHACS).
 - **Trusted Registries**: Policies restrict pulls to approved sources, with RHACS providing policy-driven detection of vulnerabilities and risky configurations plus enforcement via admission control.
 - **Build Security**: Controlled build environments (e.g., Tekton, GitHub Actions, GitLab Runners, Argo) perform reproducible container builds with pinned base image digests, signature generation (cosign/Sigstore), provenance attestations, and policy gates to block untrusted artifacts, reducing supply-chain risk.
 
@@ -134,7 +134,7 @@ Beginner summary:
 Once deployed, OpenShift maintains runtime security through isolation and observability.
 
 ### Network Controls
-- **NetworkPolicies**: Enforce micro-segmentation, with UDNs for stronger isolation in multi-tenant setups.
+- **NetworkPolicies**: Enforce micro-segmentation, with UDNs (available in OpenShift 4.15+) for stronger isolation in multi-tenant setups.
 - **Multus and Multi-NetworkPolicies**: Support legacy VLAN connectivity and advanced traffic control, integrating with SDN for zero-trust networking.
 
 ### Audit and Monitoring
@@ -239,6 +239,8 @@ Techniques Mitigated/Detected: T1490, T1489, T1491, T1496, T1485
 Scenario: Resource exhaustion, deleted backups, or UI defacement.
 Mitigations: Revision rollback; backups; quotas/limits; SCC privilege constraints; monitoring & alerting; deployment policy enforcement.
 
+*Contributes to mitigation/detection; layered defenses required.
+
 ## Appendix: CIA Triad Mapped to OpenShift Security Controls (with MITRE ATT&CK)
 Purpose: Provide a concise assurance matrix linking confidentiality, integrity, and availability objectives to native OpenShift capabilities (core) and clearly optional ecosystem additions. “Techniques Mitigated/Detected” indicates contribution to preventing or discovering activity (not absolute prevention).
 
@@ -275,7 +277,7 @@ Ultra‑Lean Summary (optional narrative):
 
 
 ## Compliance and Ecosystem Integrations
-OpenShift facilitates compliance with frameworks including CIS Benchmarks, DISA STIG, PCI-DSS, HIPAA, FedRAMP, and emerging regulatory focus areas like DORA and NIS2. It does so through:
+OpenShift facilitates compliance with frameworks including CIS Benchmarks, DISA STIG, PCI-DSS, HIPAA, FedRAMP, and emerging regulatory focus areas like DORA and NIS2 (proper configuration required). It does so through:
 - **Certified Components**: FIPS-validated cryptography and SELinux for government workloads.
 - **Third-Party Tools**: Integrations with RHACS, Quay, and external scanners for end-to-end security.
 - **Automation**: Operators for policy enforcement, reducing audit overhead.
@@ -286,7 +288,7 @@ Outcome: Smoother evidence preparation; fewer custom scripts to gather artifacts
 ## Competitive Advantages for Pre-Sales
 
 ### Detailed Technical Sales Version
-When evaluating Kubernetes platforms, OpenShift differentiates through integrated security controls that reduce custom assembly effort. Upstream Kubernetes typically requires stitching together admission, network policy enforcement, signing, image governance, and lifecycle tooling. OpenShift delivers these primitives ready for configuration, often accelerating secure implementation. Security Context Constraints (SCCs), network isolation options, and TLS encryption defaults eliminate common misconfiguration paths and shorten audit preparation.
+When evaluating Kubernetes platforms, OpenShift differentiates through integrated security controls that reduce custom assembly effort. Upstream Kubernetes typically requires stitching together admission, network policy enforcement, signing, image governance, and lifecycle tooling. OpenShift delivers these primitives ready for configuration, often accelerating secure implementation. Security Context Constraints (SCCs) and TLS defaults reduce misconfigs; network isolation requires NetworkPolicies. This eliminates common misconfiguration paths and shortens audit preparation.
 
 Total cost of ownership improves as managed lifecycle (automated updates, SBOMs, defined support phases) reduces maintenance overhead versus maintaining disparate add‑ons in environments like self-managed upstream, EKS, or GKE. Compliance readiness benefits from FIPS-validated cryptography, audit logging, and exportable evidence artifacts—lowering the manual effort to satisfy frameworks such as PCI DSS or HIPAA. Teams frequently report reduced incident triage time as secure defaults constrain privilege and lateral movement potential.
 
