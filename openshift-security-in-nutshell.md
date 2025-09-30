@@ -171,26 +171,155 @@ Simple operating model:
 Outcome in one sentence: Compute Zones give you a pragmatic, auditable middle ground—proving deliberate segregation of sensitive workloads—before incurring the overhead of multiplying clusters.
 
 
-## MITRE ATT&CK Alignment (OpenShift + RHACS)
+## MITRE ATT&CK + OpenShift Security Capability Mapping
+(Organized by Tactic, with Scenarios and Native OpenShift + RHACS Mitigations)
 Beginner summary:
 - Maps common attack steps to the controls that reduce or detect them.
 - Helps teams justify platform controls to auditors and leadership.
 - Reinforces layered defense: multiple safeguards for each tactic.
 Mapping common container/Kubernetes threat tactics to native controls for defensible conversations. (Technique IDs from MITRE ATT&CK where applicable.)
 
-| Tactic | Techniques Mitigated/Detected | Scenario | Mitigations |
-|--------|-------------------------------|----------|-------------|
-| Initial Access | T1552.001, T1528, T1555, T1190, T1203 | Leaked token or exploit of outdated unauthenticated service exposed via a Route. | Short‑lived OAuth tokens; etcd encryption; signature/provenance enforcement; registry/image policy; SCC + admission gating; audit anomaly detection. |
-| Credential Access | T1555, T1528 | Compromised pod lists mounted secrets or env vars to extract credentials. | etcd encryption; least‑privilege RBAC; SCC restricts mounts; secret exposure policies; audit logging. |
-| Privilege Escalation | T1068, T1078.004, T1098, T1087 | Pipeline deploys pod requesting privileged SCC or excessive RBAC granted. | SCC non‑privileged defaults; privileged policy detection; RBAC change auditing; escalation alerts. |
-| Persistence | T1602.002, T1053.005 | Deployment or CronJob modified so a backdoored image is continuously pulled. | Drift detection; GitOps reconciliation/rollback; registry & spec policy; audit history. |
-| Execution | T1059, T1609 | Interactive exec session used to pull tooling or attempt escape. | Exec alerting; SCC non‑root + namespace isolation; audit traceability. |
-| Defense Evasion | T1562, T1070.004 | Attempt to disable or clear logging/audit records. | Central forwarding; restricted mutation; immutable filesystem patterns. |
-| Discovery | T1083, T1033 | API-driven enumeration of nodes, namespaces, or accounts. | Least‑privilege RBAC; enumeration pattern alerting; namespace scoping. |
-| Lateral Movement | T1021.004, T1571, T1046, T1040 | Compromised pod scans ranges, probes ports, or brute forces credentials. | NetworkPolicy segmentation; egress anomaly detection; SCC hostNetwork restrictions; reduced capabilities. |
-| Collection | T1083, T1033 | Secrets or ConfigMaps harvested from mounted volumes. | Read‑only secret mounts; minimal env var use; SCC volume restrictions; RBAC scoping; exposure policies. |
-| Command & Control (C2) | T1571 | Encrypted outbound channel to external infrastructure. | Egress controls; anomalous connection detection; capability restrictions. |
-| Impact | T1490, T1489, T1491, T1496, T1485 | Resource exhaustion, deleted backups, or UI defacement. | Revision rollback; backups; quotas/limits; SCC privilege constraints; monitoring & alerting; deployment policy enforcement. |
+### Initial Access
+Techniques:
+T1552.001 (Token theft)
+T1528 (Cloud Account Access)
+T1555 (Credential dump)
+T1190 (Exploit vulnerable component)
+T1203 (Public-facing application exploit)
+Example Scenario:
+A developer accidentally commits a service account token to a public Git repository. An attacker uses the stolen credentials to access the cluster and deploy a pod, or exploits an outdated, unauthenticated web service exposed via a Route.
+OpenShift + RHACS Mitigations:
+- OAuth with external IdPs (e.g., LDAP, GitHub, OIDC) ensures federated and auditable authentication with short-lived tokens.
+- etcd encryption at rest protects stored tokens and credentials.
+- RHACS enforces image signature verification, ensuring only trusted and signed images are deployed.
+- RHACS blocks unscanned images or those pulled from unapproved registries.
+- Audit logs capture unauthorized access patterns.
+
+### Credential Access
+Techniques:
+T1555 (Credential Dumping)
+T1528 (Cloud Account Access)
+Example Scenario:
+A compromised pod gains access to mounted secrets and attempts to exfiltrate cloud access keys or service account tokens via environment variables.
+Mitigations:
+- etcd encryption protects secrets in the control plane.
+- SCCs restrict access to host-level secret storage and prevent unnecessary host mounts.
+- RHACS detects secrets exposed as environment variables and flags deployments violating secure secret handling policies.
+- Kubernetes RBAC controls restrict secret access to only authorized service accounts within the correct namespace.
+- RHACS/Audit logs provide visibility into secret access events.
+
+### Privilege Escalation
+Techniques:
+T1068 (Privileged Container)
+T1078.004 (Valid Cloud Accounts)
+T1098 (Account Addition)
+T1087 (Account Discovery)
+Example Scenario:
+A CI/CD misconfiguration allows a developer to deploy a container requesting privileged SCC. Alternatively, a user creates a ClusterRoleBinding granting cluster-admin to a service account.
+Mitigations:
+- SCC enforcement denies privileged containers or host namespace access unless explicitly allowed.
+- RHACS policy blocks deployments using privileged, hostPID, or hostNetwork settings.
+- OpenShift audit logs capture all RBAC changes and ClusterRoleBindings, enabling post-event analysis.
+- RHACS detects and alerts on privilege escalation attempts, role bindings, and misuse of elevated privileges.
+- Kubernetes RBAC scoping ensures fine-grained access control to prevent unauthorized privilege elevation.
+
+### Persistence
+Techniques:
+T1602.002 (Kubernetes Pod Spec Modification)
+T1053.005 (Scheduled Task/Job)
+Example Scenario:
+An attacker modifies a CronJob or Deployment spec to continuously pull a backdoored image, ensuring persistent access to the cluster.
+Mitigations:
+- RHACS detects drift from baselines, including new or updated pods with risky behaviors.
+- Integration with GitOps (e.g., ArgoCD) provides visibility into unauthorized configuration changes and allows automated rollback.
+- Admission control and RHACS policies can block workloads not matching defined standards (e.g., labels, annotations, registries).
+- Audit logs track spec updates and Deployment/Job creation events.
+
+### Execution
+Techniques:
+T1059 (Command Execution)
+T1609 (Container Escape)
+Example Scenario:
+An attacker gains interactive access to a pod using kubectl exec and uses it to download malware, establish persistence, or attempt container escape.
+Mitigations:
+- RHACS detects and alerts on exec activity, especially when initiated by unexpected users or service accounts.
+- SCCs deny containers the ability to run as root, escalate privileges, or access host IPC and PID namespaces.
+- OpenShift audit logs track exec activity including the initiator and target pod.
+
+### Defense Evasion
+Techniques:
+T1562 (Disable Logging)
+T1070.004 (Clear Audit Logs)
+Example Scenario:
+A privileged container modifies API server logging configuration or attempts to overwrite/delete audit logs to obscure unauthorized activity.
+Mitigations:
+- OpenShift audit logs are centrally configured and should be forwarded to immutable or external storage.
+- Only cluster admins can modify audit profiles, and all changes are logged.
+- Immutable infrastructure principles (e.g., read-only file systems) can limit an attacker's ability to clear logs.
+
+### Discovery
+Techniques:
+T1083 (System Discovery)
+T1033 (User Account Discovery)
+Example Scenario:
+A compromised pod or workload begins querying the Kubernetes API to list nodes, namespaces, service accounts, and RBAC bindings to understand the cluster topology.
+Mitigations:
+- RBAC scoping prevents broad access to discovery APIs, especially across namespaces.
+- OpenShift audit logs track all API calls, enabling detection of reconnaissance patterns.
+- Service accounts should be minimally scoped and namespace-bound by default.
+
+### Lateral Movement
+Techniques:
+T1021.004 (SSH)
+T1571 (Non-standard Ports)
+T1046 (Network Scanning)
+T1040 (Network Sniffing)
+Example Scenario:
+A pod is compromised and begins scanning internal IP ranges, initiating connections to other pods via non-standard ports or attempting SSH brute force to jump between workloads.
+Mitigations:
+- Kubernetes NetworkPolicies with default-deny configurations isolate workloads by namespace, label, or application.
+- RHACS flags deployments with overly permissive ingress/egress, or containers using suspicious ports and protocols.
+- Disallow use of hostNetwork and NodePorts unless explicitly needed via SCCs.
+- SCCs deny access to raw networking capabilities and host-level devices.
+
+### Collection
+Techniques:
+T1083 (System Discovery)
+T1033 (User Discovery)
+Example Scenario:
+An attacker collects mounted secrets, ConfigMaps, or sensitive environment variables from compromised pods.
+Mitigations:
+- Avoid storing secrets in environment variables; mount as read-only volumes with least privilege.
+- SCCs restrict container access to host volumes, /proc, or /etc.
+- RHACS policies flag containers that expose sensitive data (e.g., access keys, passwords, tokens).
+- Use RBAC to scope access to ConfigMaps and Secrets, especially across namespaces.
+
+### Command and Control (C2)
+Techniques:
+T1571 (Non-standard Port Communication)
+Example Scenario:
+A compromised pod initiates an outbound connection over an encrypted channel to an attacker-controlled server on a high, non-standard port.
+Mitigations:
+- OpenShift NetworkPolicies with egress rules can block unauthorized outbound traffic.
+- SCCs deny use of host networking or raw socket capabilities.
+- RHACS detects baseline deviations in runtime behavior, such as unexpected processes initiating network connections or containers communicating with unfamiliar external destinations.
+
+### Impact
+Techniques:
+T1490 (Inhibit System Recovery)
+T1489 (Service Stop)
+T1491 (Defacement)
+T1496 (Resource Hijacking)
+T1485 (Service Crash)
+Example Scenario:
+An attacker deploys a resource-heavy container that exhausts node memory, deletes backups, and replaces the front-end UI of a customer-facing app with a defaced page.
+OpenShift + RHACS Mitigations:
+- Deployment revision history allows rollback to known-good versions of workloads.
+- OADP (OpenShift API for Data Protection) provides full backup and recovery support for clusters, namespaces, and PVCs.
+- ResourceQuotas and LimitRanges prevent over-consumption and container sprawl.
+- SCCs restrict privileged workloads that could cause node instability or impact control plane components.
+- OpenShift Monitoring integrated with Alertmanager notifies operators of node pressure, pod crashes, and container-level anomalies.
+- RHACS policy engine can block deployments that violate operational or availability rules (e.g., containers without probes, high resource limits, no liveness/readiness checks).
 
 *Contributes to mitigation/detection; layered defenses required.
 
