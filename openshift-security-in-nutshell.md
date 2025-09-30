@@ -171,9 +171,10 @@ Simple operating model:
 Outcome in one sentence: Compute Zones give you a pragmatic, auditable middle ground—proving deliberate segregation of sensitive workloads—before incurring the overhead of multiplying clusters.
 
 
-## MITRE ATT&CK + OpenShift Security Capability Mapping
-(Organized by Tactic, with Scenarios and Native OpenShift + RHACS Mitigations)
-Beginner summary:
+## MITRE ATT&CK + OpenShift and RHACS
+
+**Beginner summary:**
+
 - Maps common attack steps to the controls that reduce or detect them.
 - Helps teams justify platform controls to auditors and leadership.
 - Reinforces layered defense: multiple safeguards for each tactic.
