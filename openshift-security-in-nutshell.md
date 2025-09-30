@@ -129,7 +129,7 @@ These controls automate security, reducing human error and enabling DevSecOps wo
 ## Runtime Isolation and Visibility
 Beginner summary:
 - Limits blast radius if a container is compromised.
-- Detects unusual behavior early (network scans, privilege misuse).
+- Provides monitoring and alerting for potential issues (e.g., via integrated monitoring stack and audit logs).
 - Provides data needed for incident investigation and compliance.
 Once deployed, OpenShift maintains runtime security through isolation and observability.
 
