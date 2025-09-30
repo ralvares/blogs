@@ -408,10 +408,10 @@ Purpose: Provide a concise assurance matrix linking confidentiality, integrity, 
 
 *Techniques mitigated/detected: Control contributes to prevention or detection; layered defenses still required.
 
-Ultra‑Lean Summary (optional narrative):
-- Confidentiality: AuthN/Z + secrets + segmented networking + signed images reduce credential misuse, lateral snooping, and tampered image risk.
-- Integrity: SCC + SELinux + admission + digest immutability + GitOps reduce breakout, spec tampering, and untrusted code execution.
-- Availability: Probes + quotas + monitoring + backups constrain resource abuse, accelerate detection, and enable recovery.
+Summary (Narrative Overview):
+- **Confidentiality**: Robust authentication and authorization (AuthN/Z) mechanisms, integrated with secure secrets management in etcd and external KMS options, ensure that sensitive data remains protected. Network segmentation via NetworkPolicies and UDNs prevents unauthorized lateral movement and snooping across namespaces. Image signing and provenance enforcement, supported by RHACS, guarantee that only verified and untampered container images are deployed, reducing risks from supply chain attacks and credential misuse.
+- **Integrity**: Security Context Constraints (SCCs) enforce non-root execution and prevent privilege escalation, while SELinux provides mandatory access controls at the host level. Admission controllers validate workload specifications before deployment, blocking unsafe configurations. Immutable image digests and GitOps integrations detect and rollback unauthorized changes, ensuring that container specs and configurations remain tamper-proof and consistent with trusted baselines.
+- **Availability**: Readiness and liveness probes, combined with horizontal pod autoscaling, maintain application health and responsiveness. ResourceQuotas and LimitRanges prevent resource exhaustion from noisy neighbors or malicious workloads. Comprehensive monitoring and alerting, integrated with external SIEMs, accelerate detection of anomalies. Backup and recovery tools like OADP enable quick restoration from incidents, minimizing downtime and data loss.
 
 
 ## Compliance and Ecosystem Integrations
