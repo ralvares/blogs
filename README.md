@@ -4,6 +4,14 @@ This repository is a practical guide for navigating the modern vulnerability lan
 
 ---
 
+## OpenShift Security Deep Dive
+
+**Document:** [openshift-security-in-nutshell.md](openshift-security-in-nutshell.md)  
+**Overview:**  
+A comprehensive guide to OpenShift's security architecture for pre-sales engineers, security architects, and technical experts. Covers defense-in-depth from foundation to runtime, compliance integrations with frameworks like CIS, PCI-DSS, and HIPAA, competitive advantages over upstream Kubernetes and managed services, and MITRE ATT&CK mappings with mitigation strategies. Includes detailed technical sales versions and executive summaries for positioning OpenShift in enterprise deployments.
+
+---
+
 ## Narrative Map
 
 ### 1. Traditional VM Security: Where We Started
